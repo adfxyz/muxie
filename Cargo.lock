@@ -45,6 +45,7 @@ dependencies = [
  "freedesktop-desktop-entry",
  "serde",
  "serde_yaml",
+ "wildflower",
 ]
 
 [[package]]
@@ -543,6 +544,12 @@ name = "wasi"
 version = "0.11.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
+
+[[package]]
+name = "wildflower"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65ac74ed60d626e0c69e122c12f4c8511bda639b3e15c2b56a67fc6c16deaf0f"
 
 [[package]]
 name = "winapi"

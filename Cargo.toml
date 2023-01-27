@@ -12,3 +12,4 @@ serde_yaml = "0.9"
 freedesktop-desktop-entry = "0.5.0"
 clap = { version = "4.1", features = ["derive"] }
 anyhow = "1.0"
+wildflower = "0.1.1"
