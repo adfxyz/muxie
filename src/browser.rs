@@ -16,8 +16,21 @@ pub struct Browser {
 impl Browser {
     pub fn open_url(&self, url: &str) -> Result<()> {
         let mut command = std::process::Command::new(&self.executable);
-        command.args(&self.args);
-        command.arg(url);
+        let mut url_arg_found = false;
+        for arg in &self.args {
+            match arg.as_str() {
+                "%u" | "%U" => {
+                    url_arg_found = true;
+                    command.arg(url);
+                }
+                _ => {
+                    command.arg(arg);
+                }
+            }
+        }
+        if !url_arg_found {
+            command.arg(url);
+        }
         command.spawn()?;
         Ok(())
     }
