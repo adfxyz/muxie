@@ -1,3 +1,4 @@
+use crate::config::ensure_config;
 use freedesktop_desktop_entry::{default_paths, Iter};
 use std::ffi::OsStr;
 use std::io::Result;
@@ -21,6 +22,7 @@ Icon=browser-demux
 const DESKTOP_ENTRY_NAME: &str = "browser-demux.desktop";
 
 pub fn install() -> Result<()> {
+    ensure_config();
     let desktop_entry_path = create_desktop_entry()?;
     make_default_browser(desktop_entry_path)?;
     Ok(())
