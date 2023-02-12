@@ -1,3 +1,4 @@
+mod asset;
 mod browser;
 mod cli;
 mod config;

@@ -1,41 +1,34 @@
+use crate::asset::{Asset, Icon};
 use crate::config::ensure_config;
-use freedesktop_desktop_entry::{default_paths, Iter};
-use std::ffi::OsStr;
 use std::io::Result;
 use std::path::PathBuf;
-
-const DESKTOP_ENTRY: &str = r#"#!/usr/bin/env xdg-open
-[Desktop Entry]
-Version=1.0
-Name=Browser Demux RS
-Keywords=Internet;WWW;Browser;Web
-Exec=browser-demux open %u
-Terminal=false
-X-MultipleArgs=false
-Type=Application
-Categories=Network;WebBrowser;
-MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/ftp;
-StartupNotify=false
-Icon=browser-demux
-"#;
 
 const DESKTOP_ENTRY_NAME: &str = "browser-demux.desktop";
 
 pub fn install() -> Result<()> {
     ensure_config();
+    install_icons()?;
     let desktop_entry_path = create_desktop_entry()?;
     make_default_browser(desktop_entry_path)?;
     Ok(())
 }
 
-pub fn create_desktop_entry() -> Result<PathBuf> {
-    for path in Iter::new(default_paths()) {
-        if path.file_name() == Some(OsStr::new(DESKTOP_ENTRY_NAME)) {
-            return Ok(path);
-        }
+fn install_icons() -> Result<()> {
+    for icon in Icon::iter() {
+        let icon_embed = Icon::get(icon.as_ref()).unwrap();
+        let (size, name) = icon.split_once('/').unwrap();
+        let icon_path = icon_path(size, name);
+        std::fs::write(icon_path, icon_embed.data)?;
     }
+    Ok(())
+}
+
+fn create_desktop_entry() -> Result<PathBuf> {
     let desktop_entry_path = desktop_entry_path();
-    std::fs::write(&desktop_entry_path, DESKTOP_ENTRY)?;
+    std::fs::write(
+        &desktop_entry_path,
+        Asset::get(DESKTOP_ENTRY_NAME).unwrap().data,
+    )?;
     Ok(desktop_entry_path)
 }
 
@@ -58,5 +51,15 @@ fn desktop_entry_path() -> PathBuf {
     let mut path = dirs::data_dir().unwrap();
     path.push("applications");
     path.push(DESKTOP_ENTRY_NAME);
+    path
+}
+
+fn icon_path(size: &str, name: &str) -> PathBuf {
+    let mut path = dirs::data_dir().unwrap();
+    path.push("icons");
+    path.push("hicolor");
+    path.push(size);
+    path.push("apps");
+    path.push(name);
     path
 }
