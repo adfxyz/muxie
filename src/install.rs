@@ -18,6 +18,12 @@ fn install_icons() -> Result<()> {
         let icon_embed = Icon::get(icon.as_ref()).unwrap();
         let (size, name) = icon.split_once('/').unwrap();
         let icon_path = icon_path(size, name);
+
+        // Ensure the parent directory exists
+        if let Some(parent) = icon_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
         std::fs::write(icon_path, icon_embed.data)?;
     }
     Ok(())
@@ -25,6 +31,12 @@ fn install_icons() -> Result<()> {
 
 fn create_desktop_entry() -> Result<PathBuf> {
     let desktop_entry_path = desktop_entry_path();
+
+    // Ensure the parent directory exists
+    if let Some(parent) = desktop_entry_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
     std::fs::write(
         &desktop_entry_path,
         Asset::get(DESKTOP_ENTRY_NAME).unwrap().data,
