@@ -13,12 +13,16 @@ Browser Demux allows you to:
 ## Usage
 
 ```bash
-# Install as default browser (required for proper functioning)
+# Install as default browser (required for proper functioning) and create basic configuration.
 browser-demux install
 
 # Open a URL (typically called by the system)
 browser-demux open https://example.com
 ```
+
+## Dependencies
+
+`browser-demux install` command needs `xdg-settings` command to be available.
 
 ## Configuration
 
