@@ -1,5 +1,5 @@
 use crate::browser::Browser;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use freedesktop_desktop_entry::{default_paths, Iter};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -17,16 +17,14 @@ fn config_path() -> PathBuf {
     config_dir.join(CONFIG_FILE)
 }
 
-fn default_config() -> Config {
-    Config {
-        browsers: installed_browsers(),
-    }
-}
 
 pub fn read_config() -> Result<Config> {
     let config_path = config_path();
     if !config_path.exists() {
-        return Ok(default_config());
+        bail!(
+            "Configuration not found. Please run 'browser-demux install' first to set up browser configuration at: {}", 
+            config_path.display()
+        );
     }
     let config_text = std::fs::read_to_string(&config_path)
         .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
@@ -64,10 +62,11 @@ pub fn installed_browsers() -> Vec<Browser> {
 pub fn ensure_config() -> Result<()> {
     let config_path = config_path();
     if !config_path.exists() {
-        let config = default_config();
+        let config = Config {
+            browsers: installed_browsers(),
+        };
         let config_text = serde_yaml::to_string(&config)
             .context("Failed to serialize default config")?;
-        
         if let Some(parent) = config_path.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("Failed to create config directory: {}", parent.display()))?;
