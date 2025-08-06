@@ -4,7 +4,7 @@ use freedesktop_desktop_entry::{default_paths, Iter};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-const CONFIG_FILE: &str = "browser-demux.yml";
+const CONFIG_FILE: &str = "muxie.yml";
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Config {
@@ -22,7 +22,7 @@ pub fn read_config() -> Result<Config> {
     let config_path = config_path();
     if !config_path.exists() {
         bail!(
-            "Configuration not found. Please run 'browser-demux install' first to set up browser configuration at: {}", 
+            "Configuration not found. Please run 'muxie install' first to set up browser configuration at: {}", 
             config_path.display()
         );
     }
@@ -48,7 +48,7 @@ pub fn installed_browsers() -> Vec<Browser> {
             let browser = Browser::from_desktop_entry(&desktop_entry);
             match browser {
                 Some(browser) => {
-                    if browser.name.contains("Browser Demux") {
+                    if browser.name.contains("Muxie") {
                         return None;
                     }
                     Some(browser)

@@ -3,7 +3,7 @@ use crate::config::ensure_config;
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 
-const DESKTOP_ENTRY_NAME: &str = "browser-demux.desktop";
+const DESKTOP_ENTRY_NAME: &str = "muxie.desktop";
 
 pub fn install() -> Result<()> {
     ensure_config().context("Failed to create default configuration")?;

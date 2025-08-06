@@ -10,7 +10,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Make browser-demux the default browser. This is required to work properly.
+    /// Make muxie the default browser. This is required to work properly.
     Install {},
 
     /// Open URL

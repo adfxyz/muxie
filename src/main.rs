@@ -15,7 +15,7 @@ use pattern::Pattern;
 fn open_url(url: &str) -> Result<()> {
     let config = read_config().context("Failed to load configuration")?;
     if config.browsers.is_empty() {
-        bail!("No browsers configured. Run 'browser-demux install' to set up the browsers.");
+        bail!("No browsers configured. Run 'muxie install' to set up the browsers.");
     }
     let default_browser = &config.browsers[0];
     for browser in &config.browsers {

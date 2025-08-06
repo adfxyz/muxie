@@ -1,5 +1,5 @@
 {
-  description = "browser-demux-rs";
+  description = "A browser router that intelligently opens URLs in different browsers based on configurable wildcard patterns.";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
   };

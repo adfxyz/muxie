@@ -1,13 +1,13 @@
 #!/usr/bin/env xdg-open
 [Desktop Entry]
 Version=1.0
-Name=Browser Demux
+Name=Muxie
 Keywords=Internet;WWW;Browser;Web
-Exec=browser-demux open %u
+Exec=muxie open %u
 Terminal=false
 X-MultipleArgs=false
 Type=Application
 Categories=Network;WebBrowser;
 MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/ftp;
 StartupNotify=false
-Icon=browser-demux
+Icon=muxie
