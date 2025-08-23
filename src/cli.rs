@@ -8,6 +8,10 @@ pub struct Cli {
     #[arg(long = "no-notify")]
     pub no_notify: bool,
 
+    /// Verbose output (use multiple times for increased verbosity)
+    #[arg(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
+    pub verbose: u8,
+
     #[command(subcommand)]
     pub command: Commands,
 }

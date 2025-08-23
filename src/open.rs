@@ -39,6 +39,7 @@ fn open_url_with<C, O, N>(
     notifier: &N,
     url: &str,
     no_notify: bool,
+    verbose: u8,
 ) -> Result<()>
 where
     C: ConfigReader,
@@ -56,6 +57,13 @@ where
     for browser in &config.browsers {
         for pattern in &browser.patterns {
             if pattern.matches(url) {
+                if verbose >= 1 {
+                    eprintln!(
+                        "Pattern '{}' matched, using browser '{}'",
+                        pattern.as_str(),
+                        browser.name
+                    );
+                }
                 match opener.open(browser, url) {
                     Ok(_) => return Ok(()),
                     Err(err) => {
@@ -79,6 +87,12 @@ where
         }
     }
     let default_browser = &config.browsers[0];
+    if verbose >= 1 {
+        eprintln!(
+            "No patterns matched, using default browser '{}'",
+            default_browser.name
+        );
+    }
     let result = opener.open(default_browser, url).with_context(|| {
         format!(
             "Failed to open URL '{}' with default browser '{}'",
@@ -98,11 +112,11 @@ where
     result
 }
 
-pub(crate) fn open_url(url: &str, no_notify: bool) -> Result<()> {
+pub(crate) fn open_url(url: &str, no_notify: bool, verbose: u8) -> Result<()> {
     let cfg = DefaultConfigReader;
     let opener = DefaultOpener;
     let notifier = DefaultNotifier;
-    open_url_with(&cfg, &opener, &notifier, url, no_notify)
+    open_url_with(&cfg, &opener, &notifier, url, no_notify, verbose)
 }
 
 #[cfg(test)]
@@ -226,6 +240,7 @@ mod tests {
             &notifier,
             "https://www.example.com",
             false,
+            0,
         );
         assert!(res.is_ok());
         assert_eq!(opener.opens.borrow().as_slice(), ["A"]);
@@ -249,6 +264,7 @@ mod tests {
             &notifier,
             "https://www.example.com/x",
             false,
+            0,
         );
         assert!(res.is_ok());
         assert_eq!(opener.opens.borrow().as_slice(), ["A", "B"]);
@@ -272,6 +288,7 @@ mod tests {
             &notifier,
             "https://example.com",
             false,
+            0,
         );
         assert!(res.is_ok());
         assert_eq!(opener.opens.borrow().as_slice(), ["A"]);
@@ -291,6 +308,7 @@ mod tests {
             &notifier,
             "https://example.com",
             false,
+            0,
         );
         assert!(res.is_err());
         // Tried match then default (same browser index 0 twice)
@@ -321,6 +339,7 @@ mod tests {
             &notifier,
             "https://example.com",
             false,
+            0,
         );
         assert!(res.is_err());
         assert_eq!(opener.opens.borrow().as_slice(), ["A"]);
@@ -338,7 +357,14 @@ mod tests {
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("default"))]);
         let notifier = FakeNotifier::new();
-        let res = open_url_with(&cfg_reader, &opener, &notifier, "https://example.com", true);
+        let res = open_url_with(
+            &cfg_reader,
+            &opener,
+            &notifier,
+            "https://example.com",
+            true,
+            0,
+        );
         assert!(res.is_err());
         assert!(notifier.notifications.borrow().is_empty());
     }
@@ -355,6 +381,7 @@ mod tests {
             &notifier,
             "https://example.com",
             false,
+            0,
         );
         assert!(res.is_err());
         assert!(opener.opens.borrow().is_empty());

@@ -25,7 +25,7 @@ fn main() {
             eprintln!("Error: No URL provided to open");
             std::process::exit(1);
         }
-        Commands::Open { url: Some(url) } => open_url(url, cli.no_notify),
+        Commands::Open { url: Some(url) } => open_url(url, cli.no_notify, cli.verbose),
         Commands::Uninstall {
             yes,
             dry_run,
