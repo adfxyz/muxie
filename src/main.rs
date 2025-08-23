@@ -14,7 +14,7 @@ use crate::install::install;
 use crate::open::open_url;
 use crate::uninstall::uninstall;
 use clap::Parser;
-use cli::{Cli, Commands};
+use cli::{Cli, Commands, ConfigCommands};
 
 fn main() {
     let cli = Cli::parse();
@@ -31,6 +31,24 @@ fn main() {
             dry_run,
             restore_default,
         } => uninstall(*yes, *dry_run, *restore_default),
+        Commands::Config { command } => match command {
+            ConfigCommands::Validate {} => match config::read_config() {
+                Ok(cfg) => {
+                    let result = cfg.validate(true);
+                    if result.is_empty() {
+                        println!("Configuration is valid");
+                        std::process::exit(0);
+                    } else {
+                        result.print();
+                        std::process::exit(1);
+                    }
+                }
+                Err(err) => {
+                    eprintln!("Error validating configuration: {err}");
+                    std::process::exit(2);
+                }
+            },
+        },
     };
 
     if let Err(err) = result {

@@ -34,4 +34,16 @@ pub enum Commands {
         #[arg(long = "restore-default")]
         restore_default: bool,
     },
+
+    /// Config-related commands
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommands,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ConfigCommands {
+    /// Validate the configuration file (strict mode)
+    Validate {},
 }
