@@ -1,7 +1,7 @@
 use crate::asset::{Asset, Icon};
 use crate::config::ensure_config;
 use crate::paths::{desktop_entry_path, icon_path};
-use crate::state::{write_state, InstallState};
+use crate::state::{InstallState, write_state};
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 
@@ -114,8 +114,16 @@ fn run_xdg_settings_with_diagnostics(args: &[&str]) {
                     "Warning: xdg-settings {:?} exited with code {:?}\nstdout: {}\nstderr: {}\nHints:\n  - Ensure xdg-utils is installed and your desktop environment is supported.\n  - Try: 'xdg-settings get default-web-browser' and 'xdg-settings check default-web-browser'.\n  - You can set the default browser manually via your system settings or with: xdg-settings set default-web-browser muxie.desktop",
                     args,
                     output.status.code().unwrap(),
-                    if stdout.is_empty() { "<empty>" } else { &stdout },
-                    if stderr.is_empty() { "<empty>" } else { &stderr },
+                    if stdout.is_empty() {
+                        "<empty>"
+                    } else {
+                        &stdout
+                    },
+                    if stderr.is_empty() {
+                        "<empty>"
+                    } else {
+                        &stderr
+                    },
                 );
             }
         }

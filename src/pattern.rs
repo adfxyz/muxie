@@ -24,19 +24,29 @@ impl Pattern for String {
 
 #[test]
 fn test_matching() {
-    assert!("example.com"
-        .to_string()
-        .matches("https://www.example.com/"));
-    assert!("example.com"
-        .to_string()
-        .matches("https://domain.com?redirect=https://www.example.com"));
-    assert!("https://*.example.com/*"
-        .to_string()
-        .matches("https://www.example.com/"));
-    assert!(!"https://*.example.com/*"
-        .to_string()
-        .matches("https://domain.com?redirect=https://www.example.com"));
-    assert!(!"*.example.com/path?foo"
-        .to_string()
-        .matches("https://www.example.com/path/foo"));
+    assert!(
+        "example.com"
+            .to_string()
+            .matches("https://www.example.com/")
+    );
+    assert!(
+        "example.com"
+            .to_string()
+            .matches("https://domain.com?redirect=https://www.example.com")
+    );
+    assert!(
+        "https://*.example.com/*"
+            .to_string()
+            .matches("https://www.example.com/")
+    );
+    assert!(
+        !"https://*.example.com/*"
+            .to_string()
+            .matches("https://domain.com?redirect=https://www.example.com")
+    );
+    assert!(
+        !"*.example.com/path?foo"
+            .to_string()
+            .matches("https://www.example.com/path/foo")
+    );
 }

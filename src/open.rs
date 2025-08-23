@@ -2,7 +2,7 @@ use crate::browser::Browser;
 use crate::config::{ConfigReader, DefaultConfigReader};
 use crate::notify::{DefaultNotifier, Notifier, NotifyPrefs};
 use crate::pattern::Pattern;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 trait UrlOpener {
     fn open(&self, browser: &Browser, url: &str) -> Result<()>;
@@ -109,7 +109,7 @@ pub(crate) fn open_url(url: &str, no_notify: bool) -> Result<()> {
 mod tests {
     use super::*;
     use crate::config::Config;
-    use anyhow::{anyhow, Result};
+    use anyhow::{Result, anyhow};
     use std::cell::RefCell;
     use std::collections::{HashMap, VecDeque};
 

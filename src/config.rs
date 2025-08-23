@@ -1,7 +1,7 @@
 use crate::browser::Browser;
 use crate::paths::config_path;
-use anyhow::{bail, Context, Result};
-use freedesktop_desktop_entry::{default_paths, Iter};
+use anyhow::{Context, Result, bail};
+use freedesktop_desktop_entry::{Iter, default_paths};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]

@@ -30,8 +30,16 @@ fn run_xdg_settings_with_diagnostics(args: &[&str]) {
                     "Warning: xdg-settings {:?} exited with code {:?}\nstdout: {}\nstderr: {}\nHints:\n  - Ensure xdg-utils is installed and your desktop environment is supported.\n  - Try: 'xdg-settings get default-web-browser' and 'xdg-settings check default-web-browser'.\n  - You can set the default browser manually via your system settings.",
                     args,
                     output.status.code(),
-                    if stdout.is_empty() { "<empty>" } else { &stdout },
-                    if stderr.is_empty() { "<empty>" } else { &stderr },
+                    if stdout.is_empty() {
+                        "<empty>"
+                    } else {
+                        &stdout
+                    },
+                    if stderr.is_empty() {
+                        "<empty>"
+                    } else {
+                        &stderr
+                    },
                 );
             }
         }
