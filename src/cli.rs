@@ -4,6 +4,10 @@ use clap::{Parser, Subcommand};
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 pub struct Cli {
+    /// Disable desktop notifications for this run
+    #[arg(long = "no-notify")]
+    pub no_notify: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }

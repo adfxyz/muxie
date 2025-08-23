@@ -14,3 +14,4 @@ clap = { version = "4.1", features = ["derive"] }
 anyhow = "1.0"
 wildflower = "0.1.1"
 rust-embed = { version = "6.4.2", features = ["interpolate-folder-path"] }
+notify-rust = { version = "4.11.0", default-features = false, features = ["z"] }

@@ -8,6 +8,31 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     #[serde(default)]
     pub browsers: Vec<Browser>,
+
+    #[serde(default)]
+    pub notifications: Notifications,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct Notifications {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+
+    #[serde(default = "default_true")]
+    pub redact_urls: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for Notifications {
+    fn default() -> Self {
+        Notifications {
+            enabled: true,
+            redact_urls: true,
+        }
+    }
 }
 
 pub fn read_config() -> Result<Config> {
@@ -56,6 +81,7 @@ pub fn ensure_config() -> Result<()> {
     if !config_path.exists() {
         let config = Config {
             browsers: installed_browsers(),
+            notifications: Notifications::default(),
         };
         let config_text =
             serde_yaml::to_string(&config).context("Failed to serialize default config")?;
