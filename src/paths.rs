@@ -1,7 +1,6 @@
 use crate::asset::Icon;
 use std::path::PathBuf;
 
-
 pub fn desktop_entry_path() -> PathBuf {
     let mut path = dirs::data_dir().expect("Failed to get user data directory");
     path.push("applications");

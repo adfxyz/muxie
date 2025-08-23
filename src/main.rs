@@ -4,9 +4,9 @@ mod cli;
 mod config;
 mod install;
 mod paths;
+mod pattern;
 mod state;
 mod uninstall;
-mod pattern;
 
 use crate::install::install;
 use crate::uninstall::uninstall;
@@ -28,7 +28,10 @@ fn open_url(url: &str) -> Result<()> {
                 match browser.open_url(url) {
                     Ok(_) => return Ok(()),
                     Err(err) => {
-                        eprintln!("Warning: Failed to open URL '{}' with browser '{}': {}", url, browser.name, err);
+                        eprintln!(
+                            "Warning: Failed to open URL '{}' with browser '{}': {}",
+                            url, browser.name, err
+                        );
                         eprintln!("Trying next browser...");
                         continue;
                     }
@@ -36,27 +39,29 @@ fn open_url(url: &str) -> Result<()> {
             }
         }
     }
-    default_browser.open_url(url)
-        .with_context(|| format!("Failed to open URL '{}' with default browser '{}'", url, default_browser.name))
+    default_browser.open_url(url).with_context(|| {
+        format!(
+            "Failed to open URL '{}' with default browser '{}'",
+            url, default_browser.name
+        )
+    })
 }
 
 fn main() {
     let cli = Cli::parse();
 
     let result = match &cli.command {
-        Commands::Install {} => {
-            install()
-        }
+        Commands::Install {} => install(),
         Commands::Open { url: None } => {
             eprintln!("Error: No URL provided to open");
             std::process::exit(1);
         }
-        Commands::Open { url: Some(url) } => {
-            open_url(url)
-        }
-        Commands::Uninstall { yes, dry_run, restore_default } => {
-            uninstall(*yes, *dry_run, *restore_default)
-        }
+        Commands::Open { url: Some(url) } => open_url(url),
+        Commands::Uninstall {
+            yes,
+            dry_run,
+            restore_default,
+        } => uninstall(*yes, *dry_run, *restore_default),
     };
 
     if let Err(err) = result {

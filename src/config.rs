@@ -3,7 +3,6 @@ use crate::paths::config_path;
 use anyhow::{bail, Context, Result};
 use freedesktop_desktop_entry::{default_paths, Iter};
 use serde::{Deserialize, Serialize};
- 
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Config {
@@ -15,7 +14,7 @@ pub fn read_config() -> Result<Config> {
     let config_path = config_path();
     if !config_path.exists() {
         bail!(
-            "Configuration not found. Please run 'muxie install' first to set up browser configuration at: {}", 
+            "Configuration not found. Please run 'muxie install' first to set up browser configuration at: {}",
             config_path.display()
         );
     }
@@ -58,13 +57,14 @@ pub fn ensure_config() -> Result<()> {
         let config = Config {
             browsers: installed_browsers(),
         };
-        let config_text = serde_yaml::to_string(&config)
-            .context("Failed to serialize default config")?;
+        let config_text =
+            serde_yaml::to_string(&config).context("Failed to serialize default config")?;
         if let Some(parent) = config_path.parent() {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create config directory: {}", parent.display()))?;
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create config directory: {}", parent.display())
+            })?;
         }
-        
+
         std::fs::write(&config_path, config_text)
             .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
     }

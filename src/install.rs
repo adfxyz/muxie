@@ -121,8 +121,7 @@ fn run_xdg_settings_with_diagnostics(args: &[&str]) {
         }
         Err(err) => {
             eprintln!(
-                "Warning: failed to invoke xdg-settings {:?}: {}\nHints:\n  - Ensure 'xdg-settings' (xdg-utils) is installed and in PATH.",
-                args, err
+                "Warning: failed to invoke xdg-settings {args:?}: {err}\nHints:\n  - Ensure 'xdg-settings' (xdg-utils) is installed and in PATH."
             );
         }
     }

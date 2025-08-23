@@ -38,7 +38,7 @@ browsers:
     patterns:
       - "*.work.com"
       - "internal.company.net"
-  - name: "Chrome"  
+  - name: "Chrome"
     executable: "google-chrome"
     patterns:
       - "github.com"
