@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use freedesktop_desktop_entry::{default_paths, Iter};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Config {
     #[serde(default)]
     pub browsers: Vec<Browser>,
@@ -13,7 +13,7 @@ pub struct Config {
     pub notifications: Notifications,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Notifications {
     #[serde(default = "default_true")]
     pub enabled: bool,
@@ -48,6 +48,20 @@ pub fn read_config() -> Result<Config> {
     let config: Config = serde_yaml::from_str(&config_text)
         .with_context(|| format!("Failed to parse config file: {}", config_path.display()))?;
     Ok(config)
+}
+
+// Dependency trait for reading configuration and a default impl.
+pub(crate) trait ConfigReader {
+    fn read_config(&self) -> Result<Config>;
+}
+
+#[derive(Default, Clone, Copy)]
+pub(crate) struct DefaultConfigReader;
+
+impl ConfigReader for DefaultConfigReader {
+    fn read_config(&self) -> Result<Config> {
+        read_config()
+    }
 }
 
 pub fn installed_browsers() -> Vec<Browser> {

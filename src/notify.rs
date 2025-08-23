@@ -1,13 +1,9 @@
-// No timing-based rate limiting is implemented currently.
-
 pub struct NotifyPrefs {
     pub enabled: bool,
     pub redact_urls: bool,
 }
 
-// No rate limiting in the current implementation.
-
-pub fn redact_url(url: &str) -> String {
+pub(crate) fn redact_url(url: &str) -> String {
     // Show only host if possible; fallback to original URL
     let trimmed = url.trim();
     let start = trimmed.find("://").map(|i| i + 3).unwrap_or(0);
@@ -22,7 +18,7 @@ pub fn redact_url(url: &str) -> String {
     }
 }
 
-pub fn notify_error(
+pub(crate) fn notify_error(
     url: &str,
     rule: &str,
     browser: &str,
@@ -46,6 +42,35 @@ pub fn notify_error(
         .appname("Muxie")
         .icon("muxie")
         .show();
+}
+
+// Dependency trait for notifications and a default impl.
+pub(crate) trait Notifier {
+    fn notify_error(
+        &self,
+        url: &str,
+        rule: &str,
+        browser: &str,
+        error_summary: &str,
+        prefs: &NotifyPrefs,
+    );
+}
+
+#[derive(Default, Clone, Copy)]
+pub(crate) struct DefaultNotifier;
+
+impl Notifier for DefaultNotifier {
+    fn notify_error(
+        &self,
+        url: &str,
+        rule: &str,
+        browser: &str,
+        error_summary: &str,
+        prefs: &NotifyPrefs,
+    ) {
+        // Delegate to the module function for actual delivery
+        notify_error(url, rule, browser, error_summary, prefs)
+    }
 }
 
 #[cfg(test)]
