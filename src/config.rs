@@ -1,22 +1,15 @@
 use crate::browser::Browser;
+use crate::paths::config_path;
 use anyhow::{bail, Context, Result};
 use freedesktop_desktop_entry::{default_paths, Iter};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-
-const CONFIG_FILE: &str = "muxie.yml";
+ 
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub browsers: Vec<Browser>,
 }
-
-fn config_path() -> PathBuf {
-    let config_dir = dirs::config_dir().unwrap();
-    config_dir.join(CONFIG_FILE)
-}
-
 
 pub fn read_config() -> Result<Config> {
     let config_path = config_path();

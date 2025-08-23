@@ -18,6 +18,9 @@ muxie install
 
 # Open a URL (typically called by the system)
 muxie open https://example.com
+
+# Uninstall - this removes the installed assets and restores the previous default browser.
+muxie uninstall
 ```
 
 ## Dependencies

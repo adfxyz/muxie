@@ -15,4 +15,19 @@ pub enum Commands {
 
     /// Open URL
     Open { url: Option<String> },
+
+    /// Uninstall muxie assets and optionally restore previous default browser
+    Uninstall {
+        /// Confirm all prompts (uninstall and delete config)
+        #[arg(short = 'y', long = "yes")]
+        yes: bool,
+
+        /// Show what would be done without making changes
+        #[arg(long = "dry-run")]
+        dry_run: bool,
+
+        /// Attempt to restore the previous default browser if a backup exists
+        #[arg(long = "restore-default")]
+        restore_default: bool,
+    },
 }

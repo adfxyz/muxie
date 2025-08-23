@@ -3,9 +3,13 @@ mod browser;
 mod cli;
 mod config;
 mod install;
+mod paths;
+mod state;
+mod uninstall;
 mod pattern;
 
 use crate::install::install;
+use crate::uninstall::uninstall;
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use cli::{Cli, Commands};
@@ -50,10 +54,13 @@ fn main() {
         Commands::Open { url: Some(url) } => {
             open_url(url)
         }
+        Commands::Uninstall { yes, dry_run, restore_default } => {
+            uninstall(*yes, *dry_run, *restore_default)
+        }
     };
 
     if let Err(err) = result {
-        eprintln!("Error: {}", err);
+        eprintln!("Error: {err}");
         std::process::exit(1);
     }
 }
