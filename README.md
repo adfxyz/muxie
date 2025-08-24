@@ -29,17 +29,29 @@ muxie uninstall
 
 ## Configuration
 
-The tool uses a YAML configuration file that maps browsers to URL patterns (`~/.config/muxie.yml`):
+The tool uses a TOML configuration file at `~/.config/muxie.toml` with separate browser definitions and routing patterns that map to browser names:
 
-```yaml
-browsers:
-  - name: "Firefox"
-    executable: "firefox"
-    patterns:
-      - "*.work.com"
-      - "internal.company.net"
-  - name: "Chrome"
-    executable: "google-chrome"
-    patterns:
-      - "github.com"
+```toml
+version = 1
+
+[[browsers]]
+name = "Firefox"
+executable = "firefox"
+args = ["%u"]
+
+[[browsers]]
+name = "Chrome"
+executable = "google-chrome"
+
+[[patterns]]
+pattern = "*.work.com"
+browsers = ["Firefox"]
+
+[[patterns]]
+pattern = "github.com"
+browsers = ["Chrome", "Firefox"]
+
+[notifications]
+enabled = true
+redact_urls = true
 ```

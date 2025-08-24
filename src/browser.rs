@@ -7,9 +7,6 @@ pub struct Browser {
 
     #[serde(default)]
     pub args: Vec<String>,
-
-    #[serde(default)]
-    pub patterns: Vec<String>,
 }
 
 impl Browser {
@@ -31,7 +28,6 @@ impl Browser {
             name,
             executable,
             args,
-            patterns: Vec::new(),
         })
     }
 }

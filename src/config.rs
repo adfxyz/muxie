@@ -3,14 +3,20 @@ use crate::paths::config_path;
 use anyhow::{Context, Result, bail};
 use freedesktop_desktop_entry::{Iter, default_paths};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::io::{self, Write};
 use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Config {
+    #[serde(default = "default_version")]
+    pub version: u32,
+
     #[serde(default)]
     pub browsers: Vec<Browser>,
+
+    #[serde(default)]
+    pub patterns: Vec<PatternEntry>,
 
     #[serde(default)]
     pub notifications: Notifications,
@@ -27,6 +33,10 @@ pub struct Notifications {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_version() -> u32 {
+    1
 }
 
 impl Default for Notifications {
@@ -48,8 +58,12 @@ pub fn read_config() -> Result<Config> {
     }
     let config_text = std::fs::read_to_string(&config_path)
         .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
-    let config: Config = serde_yaml::from_str(&config_text)
-        .with_context(|| format!("Failed to parse config file: {}", config_path.display()))?;
+    let config: Config = toml::from_str(&config_text).with_context(|| {
+        format!(
+            "Failed to parse config file (TOML): {}",
+            config_path.display()
+        )
+    })?;
     Ok(config)
 }
 
@@ -97,11 +111,13 @@ pub fn ensure_config() -> Result<()> {
     let config_path = config_path();
     if !config_path.exists() {
         let config = Config {
+            version: default_version(),
             browsers: installed_browsers(),
+            patterns: Vec::new(),
             notifications: Notifications::default(),
         };
-        let config_text =
-            serde_yaml::to_string(&config).context("Failed to serialize default config")?;
+        let config_text = toml::to_string_pretty(&config)
+            .context("Failed to serialize default config to TOML")?;
         if let Some(parent) = config_path.parent() {
             std::fs::create_dir_all(parent).with_context(|| {
                 format!("Failed to create config directory: {}", parent.display())
@@ -151,7 +167,7 @@ impl Config {
             ));
         }
 
-        // Duplicate browser names, empty fields, and exec presence
+        // Duplicate browser names, empty fields, args placeholders, and exec presence
         let mut names: HashSet<&str> = HashSet::new();
         for (i, b) in self.browsers.iter().enumerate() {
             let path = |field: &str| format!("browsers[{i}].{field}");
@@ -176,43 +192,43 @@ impl Config {
                     Some(path("executable")),
                 ));
             }
-            // Patterns checks: non-empty strings
-            for (pi, p) in b.patterns.iter().enumerate() {
-                if p.trim().is_empty() {
+            // Args placeholders check: only %u and %U are supported
+            for (ai, arg) in b.args.iter().enumerate() {
+                if arg.starts_with('%') && arg != "%u" && arg != "%U" {
                     errors.push(ValidationError::new(
-                        "pattern.empty",
-                        "Pattern must not be empty",
-                        Some(format!("browsers[{i}].patterns[{pi}]")),
-                    ));
-                }
-                // Basic sanity: avoid spaces which are often mistakes
-                if p.contains('\n') {
-                    errors.push(ValidationError::new(
-                        "pattern.newline",
-                        "Pattern contains a newline",
-                        Some(format!("browsers[{i}].patterns[{pi}]")),
+                        "browser.args.unsupported_placeholder",
+                        format!("Unsupported placeholder in args: '{arg}' (only %u/%U allowed)"),
+                        Some(format!("browsers[{i}].args[{ai}]")),
                     ));
                 }
             }
         }
 
-        // Overlapping exact-duplicate patterns across browsers (ambiguous)
-        let mut pattern_map: HashMap<&str, Vec<usize>> = HashMap::new();
-        for (i, b) in self.browsers.iter().enumerate() {
-            for p in &b.patterns {
-                pattern_map.entry(p.as_str()).or_default().push(i);
-            }
-        }
-        for (p, idxs) in pattern_map.iter() {
-            if idxs.len() > 1 {
-                let msg = format!(
-                    "Pattern '{p}' appears in multiple browsers (indexes {idxs:?}); matching order applies"
-                );
+        // Pattern entries validation
+        let name_set: HashSet<&str> = self.browsers.iter().map(|b| b.name.as_str()).collect();
+        for (pi, pat) in self.patterns.iter().enumerate() {
+            if pat.pattern.trim().is_empty() {
                 errors.push(ValidationError::new(
-                    "pattern.duplicate",
-                    msg,
-                    Some("browsers[*].patterns".to_string()),
+                    "pattern.empty",
+                    "Pattern must not be empty",
+                    Some(format!("patterns[{pi}].pattern")),
                 ));
+            }
+            if pat.pattern.contains('\n') {
+                errors.push(ValidationError::new(
+                    "pattern.newline",
+                    "Pattern contains a newline",
+                    Some(format!("patterns[{pi}].pattern")),
+                ));
+            }
+            for (bi, name) in pat.browsers.iter().enumerate() {
+                if strict && !name_set.contains(name.as_str()) {
+                    errors.push(ValidationError::new(
+                        "pattern.browser.unknown",
+                        format!("Unknown browser in pattern: '{name}'"),
+                        Some(format!("patterns[{pi}].browsers[{bi}]")),
+                    ));
+                }
             }
         }
 
@@ -292,7 +308,9 @@ mod tests {
     #[test]
     fn validate_detects_empty() {
         let cfg = Config {
+            version: 1,
             browsers: vec![],
+            patterns: vec![],
             notifications: Notifications::default(),
         };
         let res = cfg.validate(false);
@@ -302,20 +320,20 @@ mod tests {
     #[test]
     fn validate_duplicate_names_and_empty_exec() {
         let cfg = Config {
+            version: 1,
             browsers: vec![
                 Browser {
                     name: "A".into(),
                     executable: "".into(),
                     args: vec![],
-                    patterns: vec![],
                 },
                 Browser {
                     name: "A".into(),
                     executable: "firefox".into(),
                     args: vec![],
-                    patterns: vec![],
                 },
             ],
+            patterns: vec![],
             notifications: Notifications::default(),
         };
         let res = cfg.validate(false);
@@ -334,12 +352,13 @@ mod tests {
     #[test]
     fn validate_browser_name_empty() {
         let cfg = Config {
+            version: 1,
             browsers: vec![Browser {
                 name: "   ".into(),
                 executable: "firefox".into(),
                 args: vec![],
-                patterns: vec![],
             }],
+            patterns: vec![],
             notifications: Notifications::default(),
         };
         let res = cfg.validate(false);
@@ -347,42 +366,29 @@ mod tests {
     }
 
     #[test]
-    fn validate_pattern_empty_and_newline() {
+    fn validate_pattern_entry_empty_and_newline() {
         let cfg = Config {
+            version: 1,
             browsers: vec![Browser {
                 name: "B".into(),
                 executable: "firefox".into(),
                 args: vec![],
-                patterns: vec!["".into(), "foo\nbar".into()],
             }],
-            notifications: Notifications::default(),
-        };
-        let res = cfg.validate(false);
-        assert!(res.errors.iter().any(|e| e.code == "pattern.empty"));
-        assert!(res.errors.iter().any(|e| e.code == "pattern.newline"));
-    }
-
-    #[test]
-    fn validate_duplicate_patterns_across_browsers() {
-        let cfg = Config {
-            browsers: vec![
-                Browser {
-                    name: "A".into(),
-                    executable: "firefox".into(),
-                    args: vec![],
-                    patterns: vec!["example.com".into()],
+            patterns: vec![
+                PatternEntry {
+                    pattern: "".into(),
+                    browsers: vec!["B".into()],
                 },
-                Browser {
-                    name: "B".into(),
-                    executable: "chromium".into(),
-                    args: vec![],
-                    patterns: vec!["example.com".into()],
+                PatternEntry {
+                    pattern: "foo\nbar".into(),
+                    browsers: vec!["B".into()],
                 },
             ],
             notifications: Notifications::default(),
         };
         let res = cfg.validate(false);
-        assert!(res.errors.iter().any(|e| e.code == "pattern.duplicate"));
+        assert!(res.errors.iter().any(|e| e.code == "pattern.empty"));
+        assert!(res.errors.iter().any(|e| e.code == "pattern.newline"));
     }
 
     #[test]
@@ -408,4 +414,10 @@ mod tests {
         assert!(s.contains("- code1: path1 — msg1\n"));
         assert!(s.contains("- code2: msg2\n"));
     }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct PatternEntry {
+    pub pattern: String,
+    pub browsers: Vec<String>,
 }

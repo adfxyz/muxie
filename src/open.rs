@@ -54,15 +54,32 @@ where
         enabled: config.notifications.enabled && !no_notify,
         redact_urls: config.notifications.redact_urls,
     };
-    for browser in &config.browsers {
-        for pattern in &browser.patterns {
-            if pattern.matches(url) {
+    // Build a lookup map for browsers by name (preserve order separately)
+    let mut by_name: std::collections::HashMap<&str, &Browser> = std::collections::HashMap::new();
+    for b in &config.browsers {
+        by_name.insert(b.name.as_str(), b);
+    }
+
+    for pat in &config.patterns {
+        if pat.browsers.is_empty() {
+            continue; // ignored pattern per PRD
+        }
+        if pat.pattern.matches(url) {
+            if verbose >= 1 {
+                eprintln!("Pattern '{}' matched", pat.pattern);
+            }
+            for name in &pat.browsers {
+                let browser = match by_name.get(name.as_str()) {
+                    Some(b) => *b,
+                    None => {
+                        if verbose >= 1 {
+                            eprintln!("- Skipping unknown browser '{name}' in pattern");
+                        }
+                        continue;
+                    }
+                };
                 if verbose >= 1 {
-                    eprintln!(
-                        "Pattern '{}' matched, using browser '{}'",
-                        pattern.as_str(),
-                        browser.name
-                    );
+                    eprintln!("- Trying browser '{}'", browser.name);
                 }
                 match opener.open(browser, url) {
                     Ok(_) => return Ok(()),
@@ -72,10 +89,9 @@ where
                             url, browser.name, err
                         );
                         eprintln!("Trying next browser...");
-                        // Notify on each failed attempt with the matched rule label
                         notifier.notify_error(
                             url,
-                            pattern.as_str(),
+                            pat.pattern.as_str(),
                             &browser.name,
                             &format!("{err}"),
                             &notify_prefs,
@@ -122,7 +138,7 @@ pub(crate) fn open_url(url: &str, no_notify: bool, verbose: u8) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::Config;
+    use crate::config::{Config, PatternEntry};
     use anyhow::{Result, anyhow};
     use std::cell::RefCell;
     use std::collections::{HashMap, VecDeque};
@@ -211,25 +227,32 @@ mod tests {
         }
     }
 
-    fn browser(name: &str, pattern: &str) -> Browser {
+    fn browser(name: &str) -> Browser {
         Browser {
             name: name.to_string(),
             executable: name.to_lowercase(),
             args: vec!["%u".to_string()],
-            patterns: vec![pattern.to_string()],
         }
     }
 
-    fn cfg_with(browsers: Vec<Browser>) -> Config {
+    fn cfg_with(browsers: Vec<Browser>, patterns: Vec<PatternEntry>) -> Config {
         Config {
+            version: 1,
             browsers,
+            patterns,
             notifications: crate::config::Notifications::default(),
         }
     }
 
     #[test]
     fn success_on_first_match() {
-        let cfg = cfg_with(vec![browser("A", "example.com"), browser("B", "nope")]);
+        let cfg = cfg_with(
+            vec![browser("A"), browser("B")],
+            vec![PatternEntry {
+                pattern: "example.com".into(),
+                browsers: vec!["A".into()],
+            }],
+        );
         let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Ok(())]);
@@ -249,10 +272,13 @@ mod tests {
 
     #[test]
     fn retry_on_failure_then_success() {
-        let cfg = cfg_with(vec![
-            browser("A", "example.com"),
-            browser("B", "example.com"),
-        ]);
+        let cfg = cfg_with(
+            vec![browser("A"), browser("B")],
+            vec![PatternEntry {
+                pattern: "example.com".into(),
+                browsers: vec!["A".into(), "B".into()],
+            }],
+        );
         let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("fail A"))]);
@@ -277,7 +303,13 @@ mod tests {
 
     #[test]
     fn no_match_uses_default() {
-        let cfg = cfg_with(vec![browser("A", "nope"), browser("B", "still-no")]);
+        let cfg = cfg_with(
+            vec![browser("A"), browser("B")],
+            vec![PatternEntry {
+                pattern: "nope".into(),
+                browsers: vec!["B".into()],
+            }],
+        );
         let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Ok(())]);
@@ -297,7 +329,13 @@ mod tests {
 
     #[test]
     fn all_fail_with_match_triggers_notify_with_rule() {
-        let cfg = cfg_with(vec![browser("A", "example.com")]);
+        let cfg = cfg_with(
+            vec![browser("A")],
+            vec![PatternEntry {
+                pattern: "example.com".into(),
+                browsers: vec!["A".into()],
+            }],
+        );
         let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("first")), Err(anyhow!("default"))]);
@@ -328,7 +366,13 @@ mod tests {
 
     #[test]
     fn all_fail_no_match_triggers_notify_default_rule() {
-        let cfg = cfg_with(vec![browser("A", "nope")]);
+        let cfg = cfg_with(
+            vec![browser("A")],
+            vec![PatternEntry {
+                pattern: "nope".into(),
+                browsers: vec!["A".into()],
+            }],
+        );
         let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("default"))]);
@@ -352,7 +396,13 @@ mod tests {
 
     #[test]
     fn no_notify_flag_suppresses_notifications() {
-        let cfg = cfg_with(vec![browser("A", "nope")]);
+        let cfg = cfg_with(
+            vec![browser("A")],
+            vec![PatternEntry {
+                pattern: "nope".into(),
+                browsers: vec!["A".into()],
+            }],
+        );
         let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("default"))]);
@@ -371,7 +421,7 @@ mod tests {
 
     #[test]
     fn empty_browsers_errors() {
-        let cfg = cfg_with(vec![]);
+        let cfg = cfg_with(vec![], vec![]);
         let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         let notifier = FakeNotifier::new();
@@ -386,5 +436,29 @@ mod tests {
         assert!(res.is_err());
         assert!(opener.opens.borrow().is_empty());
         assert!(notifier.notifications.borrow().is_empty());
+    }
+
+    #[test]
+    fn unknown_browser_is_skipped_and_fallback_applies() {
+        let cfg = cfg_with(
+            vec![browser("A")],
+            vec![PatternEntry {
+                pattern: "example.com".into(),
+                browsers: vec!["Missing".into(), "A".into()],
+            }],
+        );
+        let cfg_reader = FakeConfig { cfg };
+        let opener = FakeOpener::new();
+        let notifier = FakeNotifier::new();
+        let res = open_url_with(
+            &cfg_reader,
+            &opener,
+            &notifier,
+            "https://example.com",
+            false,
+            0,
+        );
+        assert!(res.is_ok());
+        assert_eq!(opener.opens.borrow().as_slice(), ["A"]);
     }
 }

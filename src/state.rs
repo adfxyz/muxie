@@ -16,8 +16,8 @@ pub fn read_state() -> Result<Option<InstallState>> {
     }
     let text = fs::read_to_string(&path)
         .with_context(|| format!("Failed to read state file: {}", path.display()))?;
-    let state: InstallState = serde_yaml::from_str(&text)
-        .with_context(|| format!("Failed to parse state file: {}", path.display()))?;
+    let state: InstallState = toml::from_str(&text)
+        .with_context(|| format!("Failed to parse state file (TOML): {}", path.display()))?;
     Ok(Some(state))
 }
 
@@ -26,7 +26,7 @@ pub fn write_state(state: &InstallState) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).ok();
     }
-    let text = serde_yaml::to_string(state)?;
+    let text = toml::to_string_pretty(state)?;
     fs::write(&path, text)
         .with_context(|| format!("Failed to write state file: {}", path.display()))?;
     Ok(())
