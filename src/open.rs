@@ -1,5 +1,5 @@
 use crate::browser::Browser;
-use crate::config::{ConfigReader, DefaultConfigReader};
+use crate::config::{Config, read_config};
 use crate::notify::{DefaultNotifier, Notifier, NotifyPrefs};
 use crate::pattern::Pattern;
 use anyhow::{Context, Result, bail};
@@ -33,8 +33,8 @@ impl UrlOpener for DefaultOpener {
     }
 }
 
-fn open_url_with<C, O, N>(
-    cfg_reader: &C,
+fn open_url_with<O, N>(
+    config: &Config,
     opener: &O,
     notifier: &N,
     url: &str,
@@ -42,11 +42,9 @@ fn open_url_with<C, O, N>(
     verbose: u8,
 ) -> Result<()>
 where
-    C: ConfigReader,
     O: UrlOpener,
     N: Notifier,
 {
-    let config = cfg_reader.read_config()?;
     if config.browsers.is_empty() {
         bail!("No browsers configured. Run 'muxie install' to set up the browsers.");
     }
@@ -129,7 +127,7 @@ where
 }
 
 pub(crate) fn open_url(url: &str, no_notify: bool, verbose: u8) -> Result<()> {
-    let cfg = DefaultConfigReader;
+    let cfg = read_config()?;
     let opener = DefaultOpener;
     let notifier = DefaultNotifier;
     open_url_with(&cfg, &opener, &notifier, url, no_notify, verbose)
@@ -146,17 +144,6 @@ mod tests {
     #[derive(Clone, Default)]
     struct TestPrefsCapture {
         enabled: bool,
-    }
-
-    // Separate fakes for each dependency
-    struct FakeConfig {
-        cfg: Config,
-    }
-
-    impl ConfigReader for FakeConfig {
-        fn read_config(&self) -> Result<Config> {
-            Ok(self.cfg.clone())
-        }
     }
 
     struct FakeOpener {
@@ -253,12 +240,11 @@ mod tests {
                 browsers: vec!["A".into()],
             }],
         );
-        let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Ok(())]);
         let notifier = FakeNotifier::new();
         let res = open_url_with(
-            &cfg_reader,
+            &cfg,
             &opener,
             &notifier,
             "https://www.example.com",
@@ -279,13 +265,12 @@ mod tests {
                 browsers: vec!["A".into(), "B".into()],
             }],
         );
-        let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("fail A"))]);
         opener.queue_outcomes("B", vec![Ok(())]);
         let notifier = FakeNotifier::new();
         let res = open_url_with(
-            &cfg_reader,
+            &cfg,
             &opener,
             &notifier,
             "https://www.example.com/x",
@@ -310,18 +295,10 @@ mod tests {
                 browsers: vec!["B".into()],
             }],
         );
-        let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Ok(())]);
         let notifier = FakeNotifier::new();
-        let res = open_url_with(
-            &cfg_reader,
-            &opener,
-            &notifier,
-            "https://example.com",
-            false,
-            0,
-        );
+        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", false, 0);
         assert!(res.is_ok());
         assert_eq!(opener.opens.borrow().as_slice(), ["A"]);
         assert!(notifier.notifications.borrow().is_empty());
@@ -336,18 +313,10 @@ mod tests {
                 browsers: vec!["A".into()],
             }],
         );
-        let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("first")), Err(anyhow!("default"))]);
         let notifier = FakeNotifier::new();
-        let res = open_url_with(
-            &cfg_reader,
-            &opener,
-            &notifier,
-            "https://example.com",
-            false,
-            0,
-        );
+        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", false, 0);
         assert!(res.is_err());
         // Tried match then default (same browser index 0 twice)
         assert_eq!(opener.opens.borrow().as_slice(), ["A", "A"]);
@@ -373,18 +342,10 @@ mod tests {
                 browsers: vec!["A".into()],
             }],
         );
-        let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("default"))]);
         let notifier = FakeNotifier::new();
-        let res = open_url_with(
-            &cfg_reader,
-            &opener,
-            &notifier,
-            "https://example.com",
-            false,
-            0,
-        );
+        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", false, 0);
         assert!(res.is_err());
         assert_eq!(opener.opens.borrow().as_slice(), ["A"]);
         let notifies = notifier.notifications.borrow();
@@ -403,18 +364,10 @@ mod tests {
                 browsers: vec!["A".into()],
             }],
         );
-        let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("default"))]);
         let notifier = FakeNotifier::new();
-        let res = open_url_with(
-            &cfg_reader,
-            &opener,
-            &notifier,
-            "https://example.com",
-            true,
-            0,
-        );
+        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", true, 0);
         assert!(res.is_err());
         assert!(notifier.notifications.borrow().is_empty());
     }
@@ -422,17 +375,9 @@ mod tests {
     #[test]
     fn empty_browsers_errors() {
         let cfg = cfg_with(vec![], vec![]);
-        let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         let notifier = FakeNotifier::new();
-        let res = open_url_with(
-            &cfg_reader,
-            &opener,
-            &notifier,
-            "https://example.com",
-            false,
-            0,
-        );
+        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", false, 0);
         assert!(res.is_err());
         assert!(opener.opens.borrow().is_empty());
         assert!(notifier.notifications.borrow().is_empty());
@@ -447,17 +392,9 @@ mod tests {
                 browsers: vec!["Missing".into(), "A".into()],
             }],
         );
-        let cfg_reader = FakeConfig { cfg };
         let opener = FakeOpener::new();
         let notifier = FakeNotifier::new();
-        let res = open_url_with(
-            &cfg_reader,
-            &opener,
-            &notifier,
-            "https://example.com",
-            false,
-            0,
-        );
+        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", false, 0);
         assert!(res.is_ok());
         assert_eq!(opener.opens.borrow().as_slice(), ["A"]);
     }

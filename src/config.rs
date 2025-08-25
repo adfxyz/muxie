@@ -67,20 +67,6 @@ pub fn read_config() -> Result<Config> {
     Ok(config)
 }
 
-// Dependency trait for reading configuration and a default impl.
-pub(crate) trait ConfigReader {
-    fn read_config(&self) -> Result<Config>;
-}
-
-#[derive(Default, Clone, Copy)]
-pub(crate) struct DefaultConfigReader;
-
-impl ConfigReader for DefaultConfigReader {
-    fn read_config(&self) -> Result<Config> {
-        read_config()
-    }
-}
-
 pub fn installed_browsers() -> Vec<Browser> {
     Iter::new(default_paths())
         .filter_map(|path| {
