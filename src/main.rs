@@ -82,6 +82,20 @@ fn main() {
                     }
                 }
             }
+            DaemonCommands::Reload {} => match client::ZbusClient::reload() {
+                Ok(true) => {
+                    println!("Reloaded configuration");
+                    Ok(())
+                }
+                Ok(false) => {
+                    eprintln!("Reload failed (kept previous config)");
+                    Err(anyhow::anyhow!("reload failed"))
+                }
+                Err(err) => {
+                    eprintln!("Unable to reload: {err}");
+                    Err(anyhow::anyhow!("reload failed"))
+                }
+            },
         },
     };
 

@@ -31,6 +31,19 @@ impl ZbusClient {
             .context("Failed to query NameHasOwner")?;
         Ok(has)
     }
+
+    pub(crate) fn reload() -> Result<bool> {
+        use zbus::blocking::Proxy;
+        let conn =
+            zbus::blocking::Connection::session().context("Failed to connect to session D-Bus")?;
+        let proxy = Proxy::new(&conn, DBUS_SERVICE, DBUS_PATH, DBUS_INTERFACE)
+            .context("Failed to create daemon proxy")?;
+        let res: bool = proxy
+            .call_method(crate::daemon::DBUS_METHOD_RELOAD, &())
+            .and_then(|reply| reply.body())
+            .context("Failed to call ReloadConfig on daemon")?;
+        Ok(res)
+    }
 }
 
 impl MuxieClient for ZbusClient {

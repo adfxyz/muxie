@@ -65,6 +65,9 @@ pub enum DaemonCommands {
 
     /// Show whether the daemon is currently running
     Status {},
+
+    /// Reload the daemon configuration
+    Reload {},
 }
 
 #[cfg(test)]
@@ -104,6 +107,18 @@ mod tests {
                 _ => panic!("unexpected daemon subcommand"),
             },
             _ => panic!("expected Daemon Status command"),
+        }
+    }
+
+    #[test]
+    fn parse_daemon_reload() {
+        let cli = Cli::parse_from(["muxie", "daemon", "reload"]);
+        match cli.command {
+            Commands::Daemon { command } => match command {
+                DaemonCommands::Reload {} => {}
+                _ => panic!("unexpected daemon subcommand"),
+            },
+            _ => panic!("expected Daemon Reload command"),
         }
     }
 
