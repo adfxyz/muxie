@@ -1,4 +1,4 @@
-use crate::paths::{config_path, desktop_entry_path, icon_paths, state_path};
+use crate::paths::{config_path, dbus_service_path, desktop_entry_path, icon_paths, state_path};
 use crate::state::{read_state, remove_state_file};
 use anyhow::Result;
 use std::fs;
@@ -79,12 +79,14 @@ pub fn uninstall(yes: bool, dry_run: bool, restore_default: bool) -> Result<()> 
     }
 
     let desktop = desktop_entry_path();
+    let dbus_service = dbus_service_path();
     let icons = icon_paths();
     let cfg = config_path();
     let state = state_path();
 
     println!("Planned actions:");
     println!("- Remove desktop entry: {}", desktop.display());
+    println!("- Remove D-Bus service: {}", dbus_service.display());
     for p in &icons {
         println!("- Remove icon: {}", p.display());
     }
@@ -138,6 +140,13 @@ pub fn uninstall(yes: bool, dry_run: bool, restore_default: bool) -> Result<()> 
             failures.push((state.clone(), e.to_string()));
         } else {
             removed.push(state.clone());
+        }
+    }
+    // Remove D-Bus service file
+    if dbus_service.exists() {
+        match fs::remove_file(&dbus_service) {
+            Ok(_) => removed.push(dbus_service.clone()),
+            Err(e) => failures.push((dbus_service.clone(), e.to_string())),
         }
     }
     // Remove config if approved

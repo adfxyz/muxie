@@ -1,6 +1,6 @@
 use crate::asset::{Asset, Icon};
 use crate::config::ensure_config;
-use crate::paths::{desktop_entry_path, icon_path};
+use crate::paths::{dbus_service_dir, dbus_service_path, desktop_entry_path, icon_path};
 use crate::state::{InstallState, write_state};
 use anyhow::{Context, Result};
 use std::path::PathBuf;
@@ -9,6 +9,7 @@ pub fn install() -> Result<()> {
     ensure_config().context("Failed to create default configuration")?;
     install_icons().context("Failed to install icons")?;
     let desktop_entry_path = create_desktop_entry().context("Failed to create desktop entry")?;
+    create_dbus_service().context("Failed to install D-Bus activation service")?;
     // Best-effort backup of previous default browser before we change it
     backup_previous_default_browser().ok();
     make_default_browser(desktop_entry_path).context("Failed to set as default browser")?;
@@ -80,6 +81,43 @@ fn create_desktop_entry() -> Result<PathBuf> {
         )
     })?;
     Ok(desktop_entry_path)
+}
+
+fn create_dbus_service() -> Result<PathBuf> {
+    let service_path = dbus_service_path();
+    if let Some(dir) = service_path.parent() {
+        std::fs::create_dir_all(dir).with_context(|| {
+            format!(
+                "Failed to create D-Bus service directory: {}",
+                dir.display()
+            )
+        })?;
+    }
+    // Resolve absolute path to current executable
+    let exec_path = std::env::current_exe()
+        .map_err(anyhow::Error::from)
+        .and_then(|p| {
+            p.to_str()
+                .map(|s| s.to_string())
+                .ok_or_else(|| anyhow::anyhow!("Executable path contains invalid UTF-8"))
+        })
+        .unwrap_or_else(|_| "muxie".to_string());
+
+    let content = format!(
+        "[D-BUS Service]\nName={}\nExec={} daemon run\n",
+        crate::daemon::DBUS_SERVICE,
+        exec_path
+    );
+    std::fs::write(&service_path, content).with_context(|| {
+        format!(
+            "Failed to write D-Bus service file: {}",
+            service_path.display()
+        )
+    })?;
+
+    // Ensure directory listing exists for parent chain (no-op if present)
+    let _ = dbus_service_dir();
+    Ok(service_path)
 }
 
 fn make_default_browser(desktop_entry_path: PathBuf) -> Result<()> {

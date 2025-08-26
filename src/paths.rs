@@ -1,5 +1,17 @@
 use crate::asset::Icon;
 use std::path::PathBuf;
+pub(crate) fn dbus_service_dir() -> PathBuf {
+    let mut p = dirs::data_dir().expect("Failed to get user data directory");
+    p.push("dbus-1");
+    p.push("services");
+    p
+}
+
+pub(crate) fn dbus_service_path() -> PathBuf {
+    let mut p = dbus_service_dir();
+    p.push(format!("{}.service", crate::daemon::DBUS_SERVICE));
+    p
+}
 
 pub fn desktop_entry_path() -> PathBuf {
     let mut path = dirs::data_dir().expect("Failed to get user data directory");
