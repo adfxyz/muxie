@@ -887,6 +887,7 @@ dependencies = [
  "toml",
  "wildflower",
  "zbus 3.15.2",
+ "zbus_names 2.6.1",
 ]
 
 [[package]]

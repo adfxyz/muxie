@@ -62,6 +62,9 @@ pub enum ConfigCommands {
 pub enum DaemonCommands {
     /// Run the daemon in the foreground (manual start)
     Run {},
+
+    /// Show whether the daemon is currently running
+    Status {},
 }
 
 #[cfg(test)]
@@ -86,8 +89,21 @@ mod tests {
         match cli.command {
             Commands::Daemon { command } => match command {
                 DaemonCommands::Run {} => {}
+                _ => panic!("unexpected daemon subcommand"),
             },
             _ => panic!("expected Daemon Run command"),
+        }
+    }
+
+    #[test]
+    fn parse_daemon_status() {
+        let cli = Cli::parse_from(["muxie", "daemon", "status"]);
+        match cli.command {
+            Commands::Daemon { command } => match command {
+                DaemonCommands::Status {} => {}
+                _ => panic!("unexpected daemon subcommand"),
+            },
+            _ => panic!("expected Daemon Status command"),
         }
     }
 

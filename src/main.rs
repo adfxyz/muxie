@@ -65,6 +65,23 @@ fn main() {
         },
         Commands::Daemon { command } => match command {
             DaemonCommands::Run {} => daemon::run(cli.no_notify, cli.verbose),
+            DaemonCommands::Status {} => {
+                match client::ZbusClient::is_running() {
+                    Ok(true) => {
+                        println!("Muxie daemon is running");
+                        Ok(())
+                    }
+                    Ok(false) => {
+                        println!("Muxie daemon is not running");
+                        Ok(())
+                    }
+                    Err(err) => {
+                        eprintln!("Unable to determine daemon status: {err}");
+                        // Return an error to make exit code non-zero
+                        Err(anyhow::anyhow!("status check failed"))
+                    }
+                }
+            }
         },
     };
 

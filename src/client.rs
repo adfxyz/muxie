@@ -17,6 +17,20 @@ impl ZbusClient {
             zbus::blocking::Connection::session().context("Failed to connect to session D-Bus")?;
         Ok(Self { conn })
     }
+
+    /// Check if the daemon service name currently has an owner without activating it.
+    pub(crate) fn is_running() -> Result<bool> {
+        let conn =
+            zbus::blocking::Connection::session().context("Failed to connect to session D-Bus")?;
+        let proxy =
+            zbus::blocking::fdo::DBusProxy::new(&conn).context("Failed to create DBusProxy")?;
+        let name = zbus_names::BusName::try_from(DBUS_SERVICE)
+            .context("Invalid service name for D-Bus")?;
+        let has = proxy
+            .name_has_owner(name)
+            .context("Failed to query NameHasOwner")?;
+        Ok(has)
+    }
 }
 
 impl MuxieClient for ZbusClient {
