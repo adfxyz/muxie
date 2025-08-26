@@ -2,6 +2,6 @@
 rustPlatform.buildRustPackage {
   pname = "muxie";
   version = "0.1.1";
-  cargoHash = "sha256-gvJxG1IRKCjeZUDoPHKeL8s05KSaArrDz9AzWvBdlwA=";
+  cargoHash = "sha256-u2JNQujHSntDMKE10nt9ZM43E3fvxnmQTgML7GRGBtE=";
   src = pkgs.lib.cleanSource ./.;
 }
