@@ -4,11 +4,11 @@ use crate::notify::{DefaultNotifier, Notifier, NotifyPrefs};
 use crate::pattern::Pattern;
 use anyhow::{Context, Result, bail};
 
-trait UrlOpener {
+pub(crate) trait UrlOpener {
     fn open(&self, browser: &Browser, url: &str) -> Result<()>;
 }
 
-struct DefaultOpener;
+pub(crate) struct DefaultOpener;
 
 impl UrlOpener for DefaultOpener {
     fn open(&self, browser: &Browser, url: &str) -> Result<()> {
@@ -33,7 +33,7 @@ impl UrlOpener for DefaultOpener {
     }
 }
 
-fn open_url_with<O, N>(
+pub(crate) fn open_url_with<O, N>(
     config: &Config,
     opener: &O,
     notifier: &N,

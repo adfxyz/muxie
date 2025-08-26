@@ -24,6 +24,12 @@ pub enum Commands {
     /// Open URL
     Open { url: Option<String> },
 
+    /// Daemon-related commands
+    Daemon {
+        #[command(subcommand)]
+        command: DaemonCommands,
+    },
+
     /// Uninstall muxie assets and optionally restore previous default browser
     Uninstall {
         /// Confirm all prompts (uninstall and delete config)
@@ -50,4 +56,49 @@ pub enum Commands {
 pub enum ConfigCommands {
     /// Validate the configuration file (strict mode)
     Validate {},
+}
+
+#[derive(Subcommand)]
+pub enum DaemonCommands {
+    /// Run the daemon in the foreground (manual start)
+    Run {},
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn parse_open_with_url() {
+        let cli = Cli::parse_from(["muxie", "open", "https://example.com"]);
+        assert!(!cli.no_notify);
+        assert_eq!(cli.verbose, 0);
+        match cli.command {
+            Commands::Open { url } => assert_eq!(url.as_deref(), Some("https://example.com")),
+            _ => panic!("expected Open command"),
+        }
+    }
+
+    #[test]
+    fn parse_daemon_run() {
+        let cli = Cli::parse_from(["muxie", "daemon", "run"]);
+        match cli.command {
+            Commands::Daemon { command } => match command {
+                DaemonCommands::Run {} => {}
+            },
+            _ => panic!("expected Daemon Run command"),
+        }
+    }
+
+    #[test]
+    fn parse_global_flags() {
+        let cli = Cli::parse_from(["muxie", "--no-notify", "-vv", "open", "https://x"]);
+        assert!(cli.no_notify);
+        assert_eq!(cli.verbose, 2);
+        match cli.command {
+            Commands::Open { url } => assert_eq!(url.as_deref(), Some("https://x")),
+            _ => panic!("expected Open command"),
+        }
+    }
 }
