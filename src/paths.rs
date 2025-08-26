@@ -30,6 +30,7 @@ pub fn icon_paths() -> Vec<PathBuf> {
 
 pub fn config_path() -> PathBuf {
     let mut config_dir = dirs::config_dir().expect("Failed to get user config directory");
+    config_dir.push("muxie");
     config_dir.push("muxie.toml");
     config_dir
 }
