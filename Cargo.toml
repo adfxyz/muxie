@@ -18,3 +18,4 @@ notify-rust = { version = "4.11.0", default-features = false, features = ["z"] }
 zbus = { version = "3", features = ["blocking"] }
 zbus_names = "2"
 notify = "6"
+libc = "0.2"

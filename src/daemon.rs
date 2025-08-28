@@ -1,4 +1,5 @@
 use crate::config::{Config, read_config};
+use crate::notify::redact_url;
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -7,8 +8,8 @@ use std::time::{Duration, Instant};
 pub const DBUS_SERVICE: &str = "xyz.adf.Muxie";
 pub const DBUS_INTERFACE: &str = "xyz.adf.Muxie1"; // Note: must match the dbus_interface attribute
 pub const DBUS_PATH: &str = "/xyz/adf/Muxie";
-pub const DBUS_METHOD_OPEN_URL: &str = "OpenUrl";
 pub const DBUS_METHOD_RELOAD: &str = "ReloadConfig";
+pub const DBUS_METHOD_OPEN_URL_FD: &str = "OpenUrlFd";
 
 struct MuxieDaemon {
     cfg: Arc<Mutex<Config>>,
@@ -29,13 +30,22 @@ impl MuxieDaemon {
 #[zbus::dbus_interface(name = "xyz.adf.Muxie1")]
 impl MuxieDaemon {
     #[allow(non_snake_case)]
-    fn OpenUrl(&self, url: &str) -> zbus::fdo::Result<()> {
-        let u = url.trim();
-        if u.is_empty() {
+    fn OpenUrlFd(&self, fd: zbus::zvariant::OwnedFd) -> zbus::fdo::Result<()> {
+        let url = read_url_from_fd(fd, 16 * 1024)
+            .map_err(|e| zbus::fdo::Error::Failed(format!("{e}")))?;
+        let trimmed = url.trim().to_string();
+        if trimmed.is_empty() {
             return Err(zbus::fdo::Error::Failed("empty URL".to_string()));
         }
         if self.verbose >= 1 {
-            eprintln!("[daemon] Received OpenUrl: {u}");
+            // Redact based on config setting; default to redacted
+            let cfg = self.cfg.lock().unwrap();
+            let show = if cfg.notifications.redact_urls {
+                redact_url(&trimmed)
+            } else {
+                trimmed.clone()
+            };
+            eprintln!("[daemon] Received OpenUrlFd: {}", show);
         }
         let opener = crate::open::DefaultOpener;
         let notifier = crate::notify::DefaultNotifier;
@@ -44,7 +54,7 @@ impl MuxieDaemon {
             &cfg_guard,
             &opener,
             &notifier,
-            u,
+            &trimmed,
             self.no_notify,
             self.verbose,
         ) {
@@ -85,6 +95,34 @@ impl MuxieDaemon {
             }
         }
     }
+}
+
+fn read_url_from_fd(fd: zbus::zvariant::OwnedFd, cap: usize) -> anyhow::Result<String> {
+    use std::io::Read;
+    use std::os::fd::IntoRawFd;
+    use std::os::unix::io::FromRawFd;
+    // Take ownership of the raw fd into a File
+    let raw = fd.into_raw_fd();
+    let mut file = unsafe { std::fs::File::from_raw_fd(raw) };
+    let mut buf = Vec::with_capacity(1024);
+    let mut total = 0usize;
+    let mut chunk = [0u8; 4096];
+    loop {
+        let n = file.read(&mut chunk)?;
+        if n == 0 {
+            break;
+        }
+        total += n;
+        if total > cap {
+            return Err(anyhow::anyhow!("URL too large"));
+        }
+        buf.extend_from_slice(&chunk[..n]);
+    }
+    if buf.is_empty() {
+        return Err(anyhow::anyhow!("empty input"));
+    }
+    let s = String::from_utf8(buf)?;
+    Ok(s)
 }
 
 /// Run the Muxie daemon
@@ -202,10 +240,10 @@ fn event_is_relevant(
         if p == cfg_path {
             return true;
         }
-        if let (Some(tn), Some(pn)) = (target_name, p.file_name()) {
-            if pn == tn {
-                return true;
-            }
+        if let (Some(tn), Some(pn)) = (target_name, p.file_name())
+            && pn == tn
+        {
+            return true;
         }
     }
     false
@@ -214,6 +252,7 @@ fn event_is_relevant(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::os::unix::io::FromRawFd;
 
     fn cfg_empty() -> Config {
         Config {
@@ -227,15 +266,33 @@ mod tests {
     #[test]
     fn open_url_rejects_empty() {
         let d = MuxieDaemon::new(Arc::new(Mutex::new(cfg_empty())), false, 0);
-        let res = d.OpenUrl("   ");
+        // Create pipe with spaces
+        let mut fds = [0 as libc::c_int; 2];
+        assert_eq!(unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) }, 0);
+        let rfd = fds[0];
+        let wfd = fds[1];
+        let mut w = unsafe { std::fs::File::from_raw_fd(wfd) };
+        use std::io::Write;
+        writeln!(w, "   ").unwrap();
+        drop(w);
+        let zfd = unsafe { zbus::zvariant::OwnedFd::from_raw_fd(rfd) };
+        let res = d.OpenUrlFd(zfd);
         assert!(res.is_err());
     }
 
     #[test]
-    fn open_url_propagates_error_on_invalid_cfg() {
-        // With empty browsers, open_url_with returns an error; ensure it's mapped to fdo::Failed
+    fn open_url_fd_propagates_error_on_invalid_cfg() {
         let d = MuxieDaemon::new(Arc::new(Mutex::new(cfg_empty())), false, 0);
-        let res = d.OpenUrl("https://example.com");
+        let mut fds = [0 as libc::c_int; 2];
+        assert_eq!(unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) }, 0);
+        let rfd = fds[0];
+        let wfd = fds[1];
+        let mut w = unsafe { std::fs::File::from_raw_fd(wfd) };
+        use std::io::Write;
+        write!(w, "https://example.com").unwrap();
+        drop(w);
+        let zfd = unsafe { zbus::zvariant::OwnedFd::from_raw_fd(rfd) };
+        let res = d.OpenUrlFd(zfd);
         assert!(res.is_err());
     }
 }

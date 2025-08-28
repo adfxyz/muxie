@@ -169,10 +169,10 @@ mod tests {
         fn open(&self, browser: &Browser, _url: &str) -> Result<()> {
             self.opens.borrow_mut().push(browser.name.clone());
             let mut outcomes = self.outcomes.borrow_mut();
-            if let Some(queue) = outcomes.get_mut(&browser.name) {
-                if let Some(res) = queue.pop_front() {
-                    return res;
-                }
+            if let Some(queue) = outcomes.get_mut(&browser.name)
+                && let Some(res) = queue.pop_front()
+            {
+                return res;
             }
             Ok(())
         }

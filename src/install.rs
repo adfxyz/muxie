@@ -22,12 +22,12 @@ fn backup_previous_default_browser() -> Result<()> {
         .args(["get", "default-web-browser"])
         .output();
     let mut state = InstallState::default();
-    if let Ok(out) = output {
-        if out.status.success() {
-            let val = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !val.is_empty() {
-                state.previous_default_browser = Some(val);
-            }
+    if let Ok(out) = output
+        && out.status.success()
+    {
+        let val = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if !val.is_empty() {
+            state.previous_default_browser = Some(val);
         }
     }
     // Don't fail installation if backup fails; best-effort.

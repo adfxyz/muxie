@@ -1,4 +1,4 @@
-use crate::daemon::{DBUS_INTERFACE, DBUS_METHOD_OPEN_URL, DBUS_PATH, DBUS_SERVICE};
+use crate::daemon::{DBUS_INTERFACE, DBUS_METHOD_OPEN_URL_FD, DBUS_PATH, DBUS_SERVICE};
 use anyhow::{Context, Result};
 
 /// Client interface to the Muxie daemon.
@@ -48,14 +48,33 @@ impl ZbusClient {
 
 impl MuxieClient for ZbusClient {
     fn open_url(&self, url: &str) -> Result<()> {
+        use std::io::Write;
+        use std::os::unix::io::{FromRawFd, RawFd};
         use zbus::blocking::Proxy;
+
+        // Create a pipe and write URL to the write end
+        let mut fds = [0 as libc::c_int; 2];
+        let rc = unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) };
+        if rc != 0 {
+            let os_err = std::io::Error::last_os_error();
+            return Err(anyhow::anyhow!("pipe2 failed: {}", os_err));
+        }
+        let rfd: RawFd = fds[0];
+        let wfd: RawFd = fds[1];
+        // SAFETY: we immediately wrap raw fd and close when dropped
+        let mut wfile = unsafe { std::fs::File::from_raw_fd(wfd) };
+        wfile.write_all(url.as_bytes())?;
+        // Drop write end to signal EOF to the daemon
+        drop(wfile);
+
+        // Wrap read end as OwnedFd for zbus
+        let zfd = unsafe { zbus::zvariant::OwnedFd::from_raw_fd(rfd) };
+
         let proxy = Proxy::new(&self.conn, DBUS_SERVICE, DBUS_PATH, DBUS_INTERFACE)
             .context("Failed to create daemon proxy")?;
-
-        // Call OpenUrl method; ignore return (unit)
         proxy
-            .call_method(DBUS_METHOD_OPEN_URL, &(url))
-            .context("Failed to call OpenUrl on daemon")?;
+            .call_method(DBUS_METHOD_OPEN_URL_FD, &(zfd))
+            .context("Failed to call OpenUrlFd on daemon")?;
         Ok(())
     }
 }

@@ -974,6 +974,7 @@ dependencies = [
  "clap",
  "dirs 4.0.0",
  "freedesktop-desktop-entry",
+ "libc",
  "notify",
  "notify-rust",
  "rust-embed",

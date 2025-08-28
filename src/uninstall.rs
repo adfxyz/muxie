@@ -52,18 +52,13 @@ fn run_xdg_settings_with_diagnostics(args: &[&str]) {
 }
 
 fn restore_previous_default_browser_from_backup() -> Result<()> {
-    if let Some(state) = read_state()? {
-        if let Some(prev) = state.previous_default_browser.as_deref() {
-            run_xdg_settings_with_diagnostics(&["set", "default-web-browser", prev]);
-            run_xdg_settings_with_diagnostics(&["set", "default-url-scheme-handler", "http", prev]);
-            run_xdg_settings_with_diagnostics(&[
-                "set",
-                "default-url-scheme-handler",
-                "https",
-                prev,
-            ]);
-            run_xdg_settings_with_diagnostics(&["set", "default-url-scheme-handler", "ftp", prev]);
-        }
+    if let Some(state) = read_state()?
+        && let Some(prev) = state.previous_default_browser.as_deref()
+    {
+        run_xdg_settings_with_diagnostics(&["set", "default-web-browser", prev]);
+        run_xdg_settings_with_diagnostics(&["set", "default-url-scheme-handler", "http", prev]);
+        run_xdg_settings_with_diagnostics(&["set", "default-url-scheme-handler", "https", prev]);
+        run_xdg_settings_with_diagnostics(&["set", "default-url-scheme-handler", "ftp", prev]);
     }
     Ok(())
 }
@@ -108,10 +103,8 @@ pub fn uninstall(yes: bool, dry_run: bool, restore_default: bool) -> Result<()> 
     }
 
     // Attempt restore first if requested
-    if restore_default {
-        if let Err(e) = restore_previous_default_browser_from_backup() {
-            eprintln!("Warning: failed to restore previous default browser: {e}");
-        }
+    if restore_default && let Err(e) = restore_previous_default_browser_from_backup() {
+        eprintln!("Warning: failed to restore previous default browser: {e}");
     }
 
     let mut failures: Vec<(PathBuf, String)> = Vec::new();
