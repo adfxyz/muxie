@@ -93,20 +93,11 @@ fn create_dbus_service() -> Result<PathBuf> {
             )
         })?;
     }
-    // Resolve absolute path to current executable
-    let exec_path = std::env::current_exe()
-        .map_err(anyhow::Error::from)
-        .and_then(|p| {
-            p.to_str()
-                .map(|s| s.to_string())
-                .ok_or_else(|| anyhow::anyhow!("Executable path contains invalid UTF-8"))
-        })
-        .unwrap_or_else(|_| "muxie".to_string());
-
+    // Use the plain command name so activation relies on PATH resolution.
+    // This avoids baking an absolute path that may change across installs.
     let content = format!(
-        "[D-BUS Service]\nName={}\nExec={} daemon run\n",
+        "[D-BUS Service]\nName={}\nExec=muxie daemon run\n",
         crate::daemon::DBUS_SERVICE,
-        exec_path
     );
     std::fs::write(&service_path, content).with_context(|| {
         format!(
