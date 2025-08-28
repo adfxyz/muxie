@@ -1,10 +1,13 @@
 # Muxie
 
-A Rust-based URL routing tool that intelligently opens URLs in different browsers based on configurable patterns. This tool acts as a browser demultiplexer - it intercepts URL requests and routes them to specific browsers based on matching patterns.
+A Rust-based URL routing tool that intelligently opens URLs in different browsers based on configurable patterns. This
+tool acts as a browser demultiplexer - it intercepts URL requests and routes them to specific browsers based on matching
+patterns.
 
 ## What it does
 
 Muxie allows you to:
+
 - Set different browsers for different websites or URL patterns
 - Automatically route URLs to the appropriate browser based on wildcard patterns
 - Install itself as the default system browser to handle all URL requests
@@ -29,7 +32,8 @@ muxie uninstall
 
 ## Configuration
 
-The tool uses a TOML configuration file at `~/.config/muxie.toml` with separate browser definitions and routing patterns that map to browser names:
+The tool uses a TOML configuration file at `~/.config/muxie/muxie.toml` with separate browser definitions and routing
+patterns that map to browser names:
 
 ```toml
 version = 1
