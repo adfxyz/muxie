@@ -60,13 +60,13 @@ impl MuxieDaemon {
         ) {
             Ok(()) => {
                 if self.verbose >= 1 {
-                    eprintln!("[daemon] Processed OpenUrl successfully");
+                    eprintln!("[daemon] Processed OpenUrlFd successfully");
                 }
                 Ok(())
             }
             Err(e) => {
                 if self.verbose >= 1 {
-                    eprintln!("[daemon] OpenUrl failed: {e}");
+                    eprintln!("[daemon] OpenUrlFd failed: {e}");
                 }
                 Err(zbus::fdo::Error::Failed(format!("{e}")))
             }
