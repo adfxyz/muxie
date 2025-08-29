@@ -69,4 +69,10 @@ browsers = ["Chrome", "Firefox"]
 [notifications]
 enabled = true
 redact_urls = true
+
+[dialog]
+# Dialog provider for selection prompts: one of "auto", "kdialog", "zenity", "yad"
+# Default is "auto". When set to a specific provider, Muxie will use only that
+# provider (no fallback).
+provider = "auto"
 ```

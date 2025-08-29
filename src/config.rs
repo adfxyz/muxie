@@ -1,6 +1,5 @@
 use crate::browser::Browser;
 use crate::paths::config_path;
-use crate::util::which_in_path;
 use anyhow::{Context, Result, bail};
 use freedesktop_desktop_entry::{Iter, default_paths};
 use serde::{Deserialize, Serialize};
@@ -20,6 +19,9 @@ pub struct Config {
 
     #[serde(default)]
     pub notifications: Notifications,
+
+    #[serde(default)]
+    pub dialog: DialogOptions,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -46,6 +48,33 @@ impl Default for Notifications {
             redact_urls: true,
         }
     }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct DialogOptions {
+    #[serde(default = "default_provider")]
+    pub provider: DialogProvider,
+}
+
+impl Default for DialogOptions {
+    fn default() -> Self {
+        DialogOptions {
+            provider: DialogProvider::Auto,
+        }
+    }
+}
+
+fn default_provider() -> DialogProvider {
+    DialogProvider::Auto
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum DialogProvider {
+    Auto,
+    Kdialog,
+    Zenity,
+    Yad,
 }
 
 pub fn read_config() -> Result<Config> {
@@ -101,6 +130,7 @@ pub fn ensure_config() -> Result<()> {
             browsers: installed_browsers(),
             patterns: Vec::new(),
             notifications: Notifications::default(),
+            dialog: DialogOptions::default(),
         };
         let config_text = toml::to_string_pretty(&config)
             .context("Failed to serialize default config to TOML")?;
@@ -138,10 +168,18 @@ impl ValidationError {
 pub struct ValidationResult {
     pub errors: Vec<ValidationError>,
 }
-
 impl Config {
     /// Validate semantic constraints. Does not perform I/O checks unless `strict` is true.
     pub fn validate(&self, strict: bool) -> ValidationResult {
+        self.validate_with_path(strict, None)
+    }
+
+    /// Like `validate`, but resolves executables against a provided PATH (for testing).
+    pub fn validate_with_path(
+        &self,
+        strict: bool,
+        path: Option<&std::ffi::OsStr>,
+    ) -> ValidationResult {
         let mut errors: Vec<ValidationError> = Vec::new();
 
         // Browsers present
@@ -156,26 +194,26 @@ impl Config {
         // Duplicate browser names, empty fields, args placeholders, and exec presence
         let mut names: HashSet<&str> = HashSet::new();
         for (i, b) in self.browsers.iter().enumerate() {
-            let path = |field: &str| format!("browsers[{i}].{field}");
+            let path_field = |field: &str| format!("browsers[{i}].{field}");
             if b.name.trim().is_empty() {
                 errors.push(ValidationError::new(
                     "browser.name.empty",
                     "Browser name must not be empty",
-                    Some(path("name")),
+                    Some(path_field("name")),
                 ));
             }
             if !b.name.is_empty() && !names.insert(b.name.as_str()) {
                 errors.push(ValidationError::new(
                     "browser.name.duplicate",
                     format!("Duplicate browser name: {}", b.name),
-                    Some(path("name")),
+                    Some(path_field("name")),
                 ));
             }
             if b.executable.trim().is_empty() {
                 errors.push(ValidationError::new(
                     "browser.executable.empty",
                     "Executable must not be empty",
-                    Some(path("executable")),
+                    Some(path_field("executable")),
                 ));
             }
             // Args placeholders check: only %u and %U are supported
@@ -200,7 +238,10 @@ impl Config {
                     Some(format!("patterns[{pi}].pattern")),
                 ));
             }
-            if pat.pattern.contains('\n') {
+            if pat.pattern.contains(
+                "
+",
+            ) {
                 errors.push(ValidationError::new(
                     "pattern.newline",
                     "Pattern contains a newline",
@@ -221,11 +262,30 @@ impl Config {
         // Strict: ensure executables are resolvable from PATH
         if strict {
             for (i, b) in self.browsers.iter().enumerate() {
-                if !b.executable.trim().is_empty() && which_in_path(&b.executable).is_none() {
+                if !b.executable.trim().is_empty()
+                    && crate::util::which_in_path(&b.executable, path).is_none()
+                {
                     errors.push(ValidationError::new(
                         "browser.executable.not_found",
                         format!("Executable '{}' not found in PATH", b.executable),
                         Some(format!("browsers[{i}].executable")),
+                    ));
+                }
+            }
+
+            // If a specific dialog provider is configured, ensure the binary exists
+            if self.dialog.provider != DialogProvider::Auto {
+                let (name, bin) = match self.dialog.provider {
+                    DialogProvider::Auto => ("auto", ""), // unreachable due to if
+                    DialogProvider::Kdialog => ("kdialog", "kdialog"),
+                    DialogProvider::Zenity => ("zenity", "zenity"),
+                    DialogProvider::Yad => ("yad", "yad"),
+                };
+                if crate::util::which_in_path(bin, path).is_none() {
+                    errors.push(ValidationError::new(
+                        "dialog.provider.not_found",
+                        format!("dialog.provider={name} configured but '{bin}' not found in PATH"),
+                        Some("dialog.provider".to_string()),
                     ));
                 }
             }
@@ -272,6 +332,7 @@ mod tests {
             browsers: vec![],
             patterns: vec![],
             notifications: Notifications::default(),
+            dialog: DialogOptions::default(),
         };
         let res = cfg.validate(false);
         assert!(res.errors.iter().any(|e| e.code == "browsers.empty"));
@@ -295,6 +356,7 @@ mod tests {
             ],
             patterns: vec![],
             notifications: Notifications::default(),
+            dialog: DialogOptions::default(),
         };
         let res = cfg.validate(false);
         assert!(
@@ -320,6 +382,7 @@ mod tests {
             }],
             patterns: vec![],
             notifications: Notifications::default(),
+            dialog: DialogOptions::default(),
         };
         let res = cfg.validate(false);
         assert!(res.errors.iter().any(|e| e.code == "browser.name.empty"));
@@ -345,6 +408,7 @@ mod tests {
                 },
             ],
             notifications: Notifications::default(),
+            dialog: DialogOptions::default(),
         };
         let res = cfg.validate(false);
         assert!(res.errors.iter().any(|e| e.code == "pattern.empty"));
@@ -373,6 +437,30 @@ mod tests {
         assert!(s.starts_with("Found 2 validation issue(s):\n"));
         assert!(s.contains("- code1: path1 — msg1\n"));
         assert!(s.contains("- code2: msg2\n"));
+    }
+
+    #[test]
+    fn validate_dialog_provider_missing_binary_in_strict() {
+        use std::ffi::OsStr;
+        let cfg = Config {
+            version: 1,
+            browsers: vec![Browser {
+                name: "B".into(),
+                executable: "sh".into(),
+                args: vec![],
+            }],
+            patterns: vec![],
+            notifications: Notifications::default(),
+            dialog: DialogOptions {
+                provider: DialogProvider::Zenity,
+            },
+        };
+        let res = cfg.validate_with_path(true, Some(OsStr::new("/__muxie_empty")));
+        assert!(
+            res.errors
+                .iter()
+                .any(|e| e.code == "dialog.provider.not_found")
+        );
     }
 }
 

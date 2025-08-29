@@ -1,5 +1,4 @@
 use crate::config::{Config, read_config};
-use crate::dialog::AutoSelector;
 use crate::notify::redact_url;
 use anyhow::{Context, Result};
 use std::path::PathBuf;
@@ -52,11 +51,12 @@ impl MuxieDaemon {
         let opener = crate::open::DefaultOpener;
         let notifier = crate::notify::DefaultNotifier;
         let cfg_guard = self.cfg.lock().unwrap();
+        let selector = crate::dialog::selector_from_config(&cfg_guard);
         match crate::open::open_url_with(
             &cfg_guard,
             &opener,
             &notifier,
-            &AutoSelector::new(),
+            selector.as_ref(),
             &trimmed,
             self.no_notify,
             self.verbose,
@@ -268,6 +268,7 @@ mod tests {
             browsers: vec![],
             patterns: vec![],
             notifications: crate::config::Notifications::default(),
+            dialog: crate::config::DialogOptions::default(),
         }
     }
 

@@ -76,13 +76,13 @@ fn have_gui_env() -> bool {
 
 fn detect_provider() -> Option<Provider> {
     // Order: kdialog -> zenity -> yad
-    if which_in_path("kdialog").is_some() {
+    if which_in_path("kdialog", None).is_some() {
         return Some(Provider::Kdialog);
     }
-    if which_in_path("zenity").is_some() {
+    if which_in_path("zenity", None).is_some() {
         return Some(Provider::Zenity);
     }
-    if which_in_path("yad").is_some() {
+    if which_in_path("yad", None).is_some() {
         return Some(Provider::Yad);
     }
     None
@@ -130,6 +130,48 @@ impl Selector for KdialogSelector {
     }
 }
 
+/// Forced selector that only uses a specific provider and never falls back to others.
+struct ForcedSelector {
+    provider: Provider,
+}
+
+impl Selector for ForcedSelector {
+    fn choose(
+        &self,
+        title: &str,
+        message: &str,
+        options: &[String],
+        default_idx: usize,
+    ) -> Result<Option<usize>> {
+        if !have_gui_env() {
+            return Err(anyhow::anyhow!("no GUI session"));
+        }
+        match self.provider {
+            Provider::Kdialog => KdialogSelector.choose(title, message, options, default_idx),
+            Provider::Zenity => ZenitySelector.choose(title, message, options, default_idx),
+            Provider::Yad => YadSelector.choose(title, message, options, default_idx),
+        }
+    }
+}
+
+pub(crate) fn selector_for_provider(p: crate::config::DialogProvider) -> Box<dyn Selector> {
+    match p {
+        crate::config::DialogProvider::Auto => Box::new(AutoSelector::new()),
+        crate::config::DialogProvider::Kdialog => Box::new(ForcedSelector {
+            provider: Provider::Kdialog,
+        }),
+        crate::config::DialogProvider::Zenity => Box::new(ForcedSelector {
+            provider: Provider::Zenity,
+        }),
+        crate::config::DialogProvider::Yad => Box::new(ForcedSelector {
+            provider: Provider::Yad,
+        }),
+    }
+}
+
+pub(crate) fn selector_from_config(cfg: &crate::config::Config) -> Box<dyn Selector> {
+    selector_for_provider(cfg.dialog.provider)
+}
 impl Selector for ZenitySelector {
     fn choose(
         &self,

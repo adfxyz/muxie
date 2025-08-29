@@ -1,6 +1,6 @@
 use crate::browser::Browser;
 use crate::config::{Config, read_config};
-use crate::dialog::{AutoSelector, Selector};
+use crate::dialog::Selector;
 use crate::notify::{DefaultNotifier, Notifier, NotifyPrefs};
 use crate::pattern::Pattern;
 use anyhow::{Context, Result, bail};
@@ -36,11 +36,11 @@ impl UrlOpener for DefaultOpener {
 
 pub(crate) const CANCELED_ERR_MARKER: &str = "MUXIE:CANCELED";
 
-pub(crate) fn open_url_with<O, N, S>(
+pub(crate) fn open_url_with<O, N>(
     config: &Config,
     opener: &O,
     notifier: &N,
-    selector: &S,
+    selector: &dyn Selector,
     url: &str,
     no_notify: bool,
     verbose: u8,
@@ -48,7 +48,6 @@ pub(crate) fn open_url_with<O, N, S>(
 where
     O: UrlOpener,
     N: Notifier,
-    S: Selector,
 {
     if config.browsers.is_empty() {
         bail!("No browsers configured. Run 'muxie install' to set up the browsers.");
@@ -176,8 +175,16 @@ pub(crate) fn open_url(url: &str, no_notify: bool, verbose: u8) -> Result<()> {
     let cfg = read_config()?;
     let opener = DefaultOpener;
     let notifier = DefaultNotifier;
-    let selector = AutoSelector::new();
-    open_url_with(&cfg, &opener, &notifier, &selector, url, no_notify, verbose)
+    let selector = crate::dialog::selector_from_config(&cfg);
+    open_url_with(
+        &cfg,
+        &opener,
+        &notifier,
+        selector.as_ref(),
+        url,
+        no_notify,
+        verbose,
+    )
 }
 
 #[cfg(test)]
@@ -275,6 +282,7 @@ mod tests {
             browsers,
             patterns,
             notifications: crate::config::Notifications::default(),
+            dialog: crate::config::DialogOptions::default(),
         }
     }
 

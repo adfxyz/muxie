@@ -1,6 +1,8 @@
+use std::ffi::OsStr;
 use std::path::PathBuf;
 
-pub(crate) fn which_in_path(cmd: &str) -> Option<PathBuf> {
+/// Resolve `cmd` in the given PATH, or the process PATH if `path` is None.
+pub(crate) fn which_in_path(cmd: &str, path: Option<&OsStr>) -> Option<PathBuf> {
     if cmd.contains(std::path::MAIN_SEPARATOR) {
         let p = PathBuf::from(cmd);
         if p.is_file() && is_executable(&p) {
@@ -8,8 +10,15 @@ pub(crate) fn which_in_path(cmd: &str) -> Option<PathBuf> {
         }
         return None;
     }
-    let path_var = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path_var) {
+    use std::borrow::Cow;
+    let cow: Cow<OsStr> = if let Some(p) = path {
+        Cow::Borrowed(p)
+    } else if let Some(envp) = std::env::var_os("PATH") {
+        Cow::Owned(envp)
+    } else {
+        return None;
+    };
+    for dir in std::env::split_paths(&cow) {
         let candidate = dir.join(cmd);
         if candidate.is_file() && is_executable(&candidate) {
             return Some(candidate);
