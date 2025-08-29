@@ -4,6 +4,7 @@ mod cli;
 mod client;
 mod config;
 mod daemon;
+mod dialog;
 mod install;
 mod notify;
 mod open;
@@ -11,6 +12,7 @@ mod paths;
 mod pattern;
 mod state;
 mod uninstall;
+mod util;
 
 use crate::client::MuxieClient;
 use crate::install::install;
@@ -29,14 +31,21 @@ fn main() {
             std::process::exit(1);
         }
         Commands::Open { url: Some(url) } => {
-            // Try daemon first; on any error, fall back to in-process open
+            // Try daemon first; on cancel, do not fall back. On other errors, fall back to in-process open.
             match client::ZbusClient::new().and_then(|c| c.open_url(url)) {
                 Ok(()) => Ok(()),
                 Err(err) => {
-                    eprintln!(
-                        "Daemon unavailable or failed ({err}). Falling back to direct open..."
-                    );
-                    open_url(url, cli.no_notify, cli.verbose)
+                    let es = err.to_string();
+                    if es.contains(crate::open::CANCELED_ERR_MARKER) {
+                        // Canceled by user via dialog; do not fall back.
+                        eprintln!("Open canceled");
+                        Err(anyhow::anyhow!("canceled"))
+                    } else {
+                        eprintln!(
+                            "Daemon unavailable or failed ({err}). Falling back to direct open..."
+                        );
+                        open_url(url, cli.no_notify, cli.verbose)
+                    }
                 }
             }
         }

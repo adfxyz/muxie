@@ -1,5 +1,6 @@
 use crate::browser::Browser;
 use crate::config::{Config, read_config};
+use crate::dialog::{AutoSelector, Selector};
 use crate::notify::{DefaultNotifier, Notifier, NotifyPrefs};
 use crate::pattern::Pattern;
 use anyhow::{Context, Result, bail};
@@ -33,10 +34,13 @@ impl UrlOpener for DefaultOpener {
     }
 }
 
-pub(crate) fn open_url_with<O, N>(
+pub(crate) const CANCELED_ERR_MARKER: &str = "MUXIE:CANCELED";
+
+pub(crate) fn open_url_with<O, N, S>(
     config: &Config,
     opener: &O,
     notifier: &N,
+    selector: &S,
     url: &str,
     no_notify: bool,
     verbose: u8,
@@ -44,6 +48,7 @@ pub(crate) fn open_url_with<O, N>(
 where
     O: UrlOpener,
     N: Notifier,
+    S: Selector,
 {
     if config.browsers.is_empty() {
         bail!("No browsers configured. Run 'muxie install' to set up the browsers.");
@@ -65,17 +70,59 @@ where
         if pat.pattern.matches(url) {
             if verbose >= 1 {
                 eprintln!("Pattern '{}' matched", pat.pattern);
-            }
+            } // Resolve eligible browsers for this pattern (skip unknown names)
+            let mut eligible: Vec<&Browser> = Vec::new();
+            let mut eligible_names: Vec<String> = Vec::new();
             for name in &pat.browsers {
-                let browser = match by_name.get(name.as_str()) {
-                    Some(b) => *b,
-                    None => {
-                        if verbose >= 1 {
-                            eprintln!("- Skipping unknown browser '{name}' in pattern");
+                if let Some(b) = by_name.get(name.as_str()) {
+                    eligible.push(*b);
+                    eligible_names.push(b.name.clone());
+                } else if verbose >= 1 {
+                    eprintln!("- Skipping unknown browser '{name}' in pattern");
+                }
+            }
+
+            if eligible.is_empty() {
+                continue;
+            }
+
+            // Determine attempt order, possibly via selection dialog when 2+ options exist
+            let mut indices: Vec<usize> = (0..eligible.len()).collect();
+            if eligible.len() >= 2 {
+                let title = "Open with…";
+                let redacted = crate::notify::redact_url(url);
+                let message = format!("Choose a browser for: {}", redacted);
+                match selector.choose(title, &message, &eligible_names, 0) {
+                    Ok(Some(selected)) => {
+                        // Start from selected, then wrap around the rest in order
+                        let mut ordered = Vec::with_capacity(indices.len());
+                        ordered.push(selected);
+                        for i in (selected + 1)..indices.len() {
+                            ordered.push(i);
                         }
-                        continue;
+                        for i in 0..selected {
+                            ordered.push(i);
+                        }
+                        indices = ordered;
                     }
-                };
+                    Ok(None) => {
+                        // User canceled: abort operation without notifications.
+                        bail!("{} Operation canceled by user", CANCELED_ERR_MARKER);
+                    }
+                    Err(err) => {
+                        if verbose >= 1 {
+                            eprintln!(
+                                "Selection dialog failed ({}); proceeding without prompt",
+                                err
+                            );
+                        }
+                        // Keep indices as default order
+                    }
+                }
+            }
+
+            for &idx in &indices {
+                let browser = eligible[idx];
                 if verbose >= 1 {
                     eprintln!("- Trying browser '{}'", browser.name);
                 }
@@ -94,7 +141,6 @@ where
                             &format!("{err}"),
                             &notify_prefs,
                         );
-                        continue;
                     }
                 }
             }
@@ -130,7 +176,8 @@ pub(crate) fn open_url(url: &str, no_notify: bool, verbose: u8) -> Result<()> {
     let cfg = read_config()?;
     let opener = DefaultOpener;
     let notifier = DefaultNotifier;
-    open_url_with(&cfg, &opener, &notifier, url, no_notify, verbose)
+    let selector = AutoSelector::new();
+    open_url_with(&cfg, &opener, &notifier, &selector, url, no_notify, verbose)
 }
 
 #[cfg(test)]
@@ -231,6 +278,59 @@ mod tests {
         }
     }
 
+    struct SelectIdx(pub usize);
+    struct CancelSelector;
+    struct ErrorSelector;
+    struct NoopSelector;
+
+    impl crate::dialog::Selector for SelectIdx {
+        fn choose(
+            &self,
+            _title: &str,
+            _message: &str,
+            _options: &[String],
+            _default_idx: usize,
+        ) -> anyhow::Result<Option<usize>> {
+            Ok(Some(self.0))
+        }
+    }
+
+    impl crate::dialog::Selector for CancelSelector {
+        fn choose(
+            &self,
+            _title: &str,
+            _message: &str,
+            _options: &[String],
+            _default_idx: usize,
+        ) -> anyhow::Result<Option<usize>> {
+            Ok(None)
+        }
+    }
+
+    impl crate::dialog::Selector for ErrorSelector {
+        fn choose(
+            &self,
+            _title: &str,
+            _message: &str,
+            _options: &[String],
+            _default_idx: usize,
+        ) -> anyhow::Result<Option<usize>> {
+            Err(anyhow!("boom"))
+        }
+    }
+
+    impl crate::dialog::Selector for NoopSelector {
+        fn choose(
+            &self,
+            _title: &str,
+            _message: &str,
+            _options: &[String],
+            _default_idx: usize,
+        ) -> anyhow::Result<Option<usize>> {
+            Ok(None)
+        }
+    }
+
     #[test]
     fn success_on_first_match() {
         let cfg = cfg_with(
@@ -247,6 +347,7 @@ mod tests {
             &cfg,
             &opener,
             &notifier,
+            &NoopSelector,
             "https://www.example.com",
             false,
             0,
@@ -273,6 +374,7 @@ mod tests {
             &cfg,
             &opener,
             &notifier,
+            &SelectIdx(0),
             "https://www.example.com/x",
             false,
             0,
@@ -298,7 +400,15 @@ mod tests {
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Ok(())]);
         let notifier = FakeNotifier::new();
-        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", false, 0);
+        let res = open_url_with(
+            &cfg,
+            &opener,
+            &notifier,
+            &NoopSelector,
+            "https://example.com",
+            false,
+            0,
+        );
         assert!(res.is_ok());
         assert_eq!(opener.opens.borrow().as_slice(), ["A"]);
         assert!(notifier.notifications.borrow().is_empty());
@@ -316,7 +426,15 @@ mod tests {
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("first")), Err(anyhow!("default"))]);
         let notifier = FakeNotifier::new();
-        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", false, 0);
+        let res = open_url_with(
+            &cfg,
+            &opener,
+            &notifier,
+            &NoopSelector,
+            "https://example.com",
+            false,
+            0,
+        );
         assert!(res.is_err());
         // Tried match then default (same browser index 0 twice)
         assert_eq!(opener.opens.borrow().as_slice(), ["A", "A"]);
@@ -345,7 +463,15 @@ mod tests {
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("default"))]);
         let notifier = FakeNotifier::new();
-        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", false, 0);
+        let res = open_url_with(
+            &cfg,
+            &opener,
+            &notifier,
+            &NoopSelector,
+            "https://example.com",
+            false,
+            0,
+        );
         assert!(res.is_err());
         assert_eq!(opener.opens.borrow().as_slice(), ["A"]);
         let notifies = notifier.notifications.borrow();
@@ -367,7 +493,15 @@ mod tests {
         let opener = FakeOpener::new();
         opener.queue_outcomes("A", vec![Err(anyhow!("default"))]);
         let notifier = FakeNotifier::new();
-        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", true, 0);
+        let res = open_url_with(
+            &cfg,
+            &opener,
+            &notifier,
+            &NoopSelector,
+            "https://example.com",
+            true,
+            0,
+        );
         assert!(res.is_err());
         assert!(notifier.notifications.borrow().is_empty());
     }
@@ -377,7 +511,15 @@ mod tests {
         let cfg = cfg_with(vec![], vec![]);
         let opener = FakeOpener::new();
         let notifier = FakeNotifier::new();
-        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", false, 0);
+        let res = open_url_with(
+            &cfg,
+            &opener,
+            &notifier,
+            &NoopSelector,
+            "https://example.com",
+            false,
+            0,
+        );
         assert!(res.is_err());
         assert!(opener.opens.borrow().is_empty());
         assert!(notifier.notifications.borrow().is_empty());
@@ -394,7 +536,94 @@ mod tests {
         );
         let opener = FakeOpener::new();
         let notifier = FakeNotifier::new();
-        let res = open_url_with(&cfg, &opener, &notifier, "https://example.com", false, 0);
+        let res = open_url_with(
+            &cfg,
+            &opener,
+            &notifier,
+            &NoopSelector,
+            "https://example.com",
+            false,
+            0,
+        );
+        assert!(res.is_ok());
+        assert_eq!(opener.opens.borrow().as_slice(), ["A"]);
+    }
+
+    #[test]
+    fn selection_reorders_attempts_and_wraps() {
+        let cfg = cfg_with(
+            vec![browser("A"), browser("B"), browser("C")],
+            vec![PatternEntry {
+                pattern: "example.com".into(),
+                browsers: vec!["A".into(), "B".into(), "C".into()],
+            }],
+        );
+        let opener = FakeOpener::new();
+        opener.queue_outcomes("B", vec![Err(anyhow!("fail B"))]);
+        opener.queue_outcomes("C", vec![Ok(())]);
+        let notifier = FakeNotifier::new();
+        let selector = SelectIdx(1); // choose B first, then C, then A if needed
+        let res = open_url_with(
+            &cfg,
+            &opener,
+            &notifier,
+            &selector,
+            "https://example.com",
+            false,
+            0,
+        );
+        assert!(res.is_ok());
+        assert_eq!(opener.opens.borrow().as_slice(), ["B", "C"]);
+    }
+
+    #[test]
+    fn cancel_aborts_no_attempt_and_no_notify() {
+        let cfg = cfg_with(
+            vec![browser("A"), browser("B")],
+            vec![PatternEntry {
+                pattern: "example.com".into(),
+                browsers: vec!["A".into(), "B".into()],
+            }],
+        );
+        let opener = FakeOpener::new();
+        let notifier = FakeNotifier::new();
+        let selector = CancelSelector;
+        let res = open_url_with(
+            &cfg,
+            &opener,
+            &notifier,
+            &selector,
+            "https://example.com",
+            false,
+            0,
+        );
+        assert!(res.is_err());
+        assert!(opener.opens.borrow().is_empty());
+        assert!(notifier.notifications.borrow().is_empty());
+    }
+
+    #[test]
+    fn provider_error_falls_back_to_default_order() {
+        let cfg = cfg_with(
+            vec![browser("A"), browser("B")],
+            vec![PatternEntry {
+                pattern: "example.com".into(),
+                browsers: vec!["A".into(), "B".into()],
+            }],
+        );
+        let opener = FakeOpener::new();
+        opener.queue_outcomes("A", vec![Ok(())]);
+        let notifier = FakeNotifier::new();
+        let selector = ErrorSelector;
+        let res = open_url_with(
+            &cfg,
+            &opener,
+            &notifier,
+            &selector,
+            "https://example.com",
+            false,
+            0,
+        );
         assert!(res.is_ok());
         assert_eq!(opener.opens.borrow().as_slice(), ["A"]);
     }

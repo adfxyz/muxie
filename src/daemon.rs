@@ -1,4 +1,5 @@
 use crate::config::{Config, read_config};
+use crate::dialog::AutoSelector;
 use crate::notify::redact_url;
 use anyhow::{Context, Result};
 use std::path::PathBuf;
@@ -54,6 +55,7 @@ impl MuxieDaemon {
             &cfg_guard,
             &opener,
             &notifier,
+            &AutoSelector::new(),
             &trimmed,
             self.no_notify,
             self.verbose,
@@ -68,7 +70,13 @@ impl MuxieDaemon {
                 if self.verbose >= 1 {
                     eprintln!("[daemon] OpenUrlFd failed: {e}");
                 }
-                Err(zbus::fdo::Error::Failed(format!("{e}")))
+                let es = e.to_string();
+                if es.contains(crate::open::CANCELED_ERR_MARKER) {
+                    return Err(zbus::fdo::Error::Failed(
+                        crate::open::CANCELED_ERR_MARKER.to_string(),
+                    ));
+                }
+                Err(zbus::fdo::Error::Failed(es))
             }
         }
     }

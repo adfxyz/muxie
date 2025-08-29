@@ -72,9 +72,16 @@ impl MuxieClient for ZbusClient {
 
         let proxy = Proxy::new(&self.conn, DBUS_SERVICE, DBUS_PATH, DBUS_INTERFACE)
             .context("Failed to create daemon proxy")?;
-        proxy
-            .call_method(DBUS_METHOD_OPEN_URL_FD, &(zfd))
-            .context("Failed to call OpenUrlFd on daemon")?;
+        match proxy.call_method(DBUS_METHOD_OPEN_URL_FD, &(zfd)) {
+            Ok(_) => (),
+            Err(e) => {
+                let es = e.to_string();
+                if es.contains(crate::open::CANCELED_ERR_MARKER) {
+                    anyhow::bail!(crate::open::CANCELED_ERR_MARKER);
+                }
+                return Err(anyhow::Error::new(e).context("Failed to call OpenUrlFd on daemon"));
+            }
+        };
         Ok(())
     }
 }
