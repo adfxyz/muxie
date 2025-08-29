@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2025-08-30
+
+Highlights
+
+- Graphical browser selection dialog when a matched pattern lists 2+ browsers. Uses native system dialogs.
+- Configurable dialog provider via `[dialog] provider = "auto|kdialog|zenity|yad"` (default `auto`). When set to a
+  specific provider, Muxie uses only that provider (no fallback).
+
 ## 0.2.0 — 2025-08-28
 
 Highlights
