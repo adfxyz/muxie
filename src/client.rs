@@ -40,7 +40,7 @@ impl ZbusClient {
             .context("Failed to create daemon proxy")?;
         let res: bool = proxy
             .call_method(crate::daemon::DBUS_METHOD_RELOAD, &())
-            .and_then(|reply| reply.body())
+            .and_then(|reply| reply.body().deserialize::<bool>())
             .context("Failed to call ReloadConfig on daemon")?;
         Ok(res)
     }
@@ -68,7 +68,9 @@ impl MuxieClient for ZbusClient {
         drop(wfile);
 
         // Wrap read end as OwnedFd for zbus
-        let zfd = unsafe { zbus::zvariant::OwnedFd::from_raw_fd(rfd) };
+        // SAFETY: rfd comes from a new pipe we created above
+        let std_owned = unsafe { std::os::fd::OwnedFd::from_raw_fd(rfd) };
+        let zfd = zbus::zvariant::OwnedFd::from(std_owned);
 
         let proxy = Proxy::new(&self.conn, DBUS_SERVICE, DBUS_PATH, DBUS_INTERFACE)
             .context("Failed to create daemon proxy")?;

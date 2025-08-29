@@ -5,6 +5,7 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use zbus::interface;
 
 pub const DBUS_SERVICE: &str = "xyz.adf.Muxie";
 pub const DBUS_INTERFACE: &str = "xyz.adf.Muxie1"; // Note: must match the dbus_interface attribute
@@ -28,7 +29,7 @@ impl MuxieDaemon {
     }
 }
 
-#[zbus::dbus_interface(name = "xyz.adf.Muxie1")]
+#[interface(name = "xyz.adf.Muxie1")]
 impl MuxieDaemon {
     #[allow(non_snake_case)]
     fn OpenUrlFd(&self, fd: zbus::zvariant::OwnedFd) -> zbus::fdo::Result<()> {
@@ -107,11 +108,9 @@ impl MuxieDaemon {
 
 fn read_url_from_fd(fd: zbus::zvariant::OwnedFd, cap: usize) -> anyhow::Result<String> {
     use std::io::Read;
-    use std::os::fd::IntoRawFd;
-    use std::os::unix::io::FromRawFd;
-    // Take ownership of the raw fd into a File
-    let raw = fd.into_raw_fd();
-    let mut file = unsafe { std::fs::File::from_raw_fd(raw) };
+    // Convert to std OwnedFd, then to File
+    let stdfd: std::os::fd::OwnedFd = fd.into();
+    let mut file = std::fs::File::from(stdfd);
     let mut buf = Vec::with_capacity(1024);
     let mut total = 0usize;
     let mut chunk = [0u8; 4096];
@@ -140,14 +139,15 @@ pub fn run(no_notify: bool, verbose: u8) -> Result<()> {
     let daemon = MuxieDaemon::new(cfg_arc.clone(), no_notify, verbose);
 
     // Build a blocking zbus connection, own the well-known name, and export the object
-    let _conn = zbus::blocking::ConnectionBuilder::session()
-        .context("Failed to connect to session D-Bus")?
-        .name(DBUS_SERVICE)
-        .context(format!("Failed to own D-Bus name {DBUS_SERVICE}"))?
-        .serve_at(DBUS_PATH, daemon)
-        .context(format!("Failed to export daemon object at {DBUS_PATH}"))?
-        .build()
-        .context("Failed to start D-Bus object server")?;
+    let conn =
+        zbus::blocking::Connection::session().context("Failed to connect to session D-Bus")?;
+    let name = zbus_names::WellKnownName::try_from(DBUS_SERVICE).context("Invalid service name")?;
+    conn.request_name(name)
+        .context(format!("Failed to own D-Bus name {DBUS_SERVICE}"))?;
+    let server = conn.object_server();
+    server
+        .at(DBUS_PATH, daemon)
+        .context(format!("Failed to export daemon object at {DBUS_PATH}"))?;
 
     if verbose >= 1 {
         eprintln!(
@@ -283,7 +283,8 @@ mod tests {
         use std::io::Write;
         writeln!(w, "   ").unwrap();
         drop(w);
-        let zfd = unsafe { zbus::zvariant::OwnedFd::from_raw_fd(rfd) };
+        let std_owned = unsafe { std::os::fd::OwnedFd::from_raw_fd(rfd) };
+        let zfd = zbus::zvariant::OwnedFd::from(std_owned);
         let res = d.OpenUrlFd(zfd);
         assert!(res.is_err());
     }
@@ -299,7 +300,8 @@ mod tests {
         use std::io::Write;
         write!(w, "https://example.com").unwrap();
         drop(w);
-        let zfd = unsafe { zbus::zvariant::OwnedFd::from_raw_fd(rfd) };
+        let std_owned = unsafe { std::os::fd::OwnedFd::from_raw_fd(rfd) };
+        let zfd = zbus::zvariant::OwnedFd::from(std_owned);
         let res = d.OpenUrlFd(zfd);
         assert!(res.is_err());
     }

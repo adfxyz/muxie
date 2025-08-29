@@ -15,7 +15,7 @@ anyhow = "1.0"
 wildflower = "0.1.1"
 rust-embed = { version = "6.4.2", features = ["interpolate-folder-path"] }
 notify-rust = { version = "4.11.0", default-features = false, features = ["z"] }
-zbus = { version = "3", features = ["blocking"] }
-zbus_names = "2"
+zbus = { version = "5", features = ["blocking"] }
+zbus_names = "4"
 notify = "6"
 libc = "0.2"
