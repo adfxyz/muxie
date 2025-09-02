@@ -1,3 +1,4 @@
+#[cfg(feature = "self-install")]
 mod asset;
 mod browser;
 mod cli;
@@ -5,18 +6,23 @@ mod client;
 mod config;
 mod daemon;
 mod dialog;
+#[cfg(feature = "self-install")]
 mod install;
 mod notify;
 mod open;
 mod paths;
 mod pattern;
+#[cfg(feature = "self-install")]
 mod state;
+#[cfg(feature = "self-install")]
 mod uninstall;
 mod util;
 
 use crate::client::MuxieClient;
+#[cfg(feature = "self-install")]
 use crate::install::install;
 use crate::open::open_url;
+#[cfg(feature = "self-install")]
 use crate::uninstall::uninstall;
 use clap::Parser;
 use cli::{Cli, Commands, ConfigCommands, DaemonCommands};
@@ -25,6 +31,7 @@ fn main() {
     let cli = Cli::parse();
 
     let result = match &cli.command {
+        #[cfg(feature = "self-install")]
         Commands::Install {} => install(),
         Commands::Open { url: None } => {
             eprintln!("Error: No URL provided to open");
@@ -49,6 +56,7 @@ fn main() {
                 }
             }
         }
+        #[cfg(feature = "self-install")]
         Commands::Uninstall {
             yes,
             dry_run,

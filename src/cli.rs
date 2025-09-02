@@ -18,6 +18,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    #[cfg(feature = "self-install")]
     /// Make muxie the default browser. This is required to work properly.
     Install {},
 
@@ -30,6 +31,7 @@ pub enum Commands {
         command: DaemonCommands,
     },
 
+    #[cfg(feature = "self-install")]
     /// Uninstall muxie assets and optionally restore previous default browser
     Uninstall {
         /// Confirm all prompts (uninstall and delete config)

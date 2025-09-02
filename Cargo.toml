@@ -19,3 +19,26 @@ zbus = { version = "5", features = ["blocking"] }
 zbus_names = "4"
 notify = "6"
 libc = "0.2"
+
+[features]
+default = ["self-install"]
+# Enables `muxie install`/`uninstall` commands that manage user-level desktop integration
+# and embeds assets (icons, desktop file) used by that flow.
+self-install = []
+
+[package.metadata.deb]
+section = "utils"
+priority = "optional"
+depends = ["${shlibs:Depends}", "${misc:Depends}"]
+suggests = ["kdialog | zenity | yad"]
+assets = [
+  ["assets/muxie.desktop", "/usr/share/applications/muxie.desktop", "644"],
+  ["assets/icons/32x32/muxie.png", "/usr/share/icons/hicolor/32x32/apps/muxie.png", "644"],
+  ["assets/icons/48x48/muxie.png", "/usr/share/icons/hicolor/48x48/apps/muxie.png", "644"],
+  ["assets/icons/64x64/muxie.png", "/usr/share/icons/hicolor/64x64/apps/muxie.png", "644"],
+  ["assets/icons/96x96/muxie.png", "/usr/share/icons/hicolor/96x96/apps/muxie.png", "644"],
+  ["assets/icons/128x128/muxie.png", "/usr/share/icons/hicolor/128x128/apps/muxie.png", "644"],
+  ["assets/icons/256x256/muxie.png", "/usr/share/icons/hicolor/256x256/apps/muxie.png", "644"],
+  ["assets/icons/scalable/muxie.svg", "/usr/share/icons/hicolor/scalable/apps/muxie.svg", "644"],
+  ["resources/packaging/debian/xyz.adf.Muxie.service", "/usr/share/dbus-1/services/xyz.adf.Muxie.service", "644"],
+]
