@@ -2,8 +2,15 @@
 name = "muxie"
 version = "0.3.0"
 edition = "2024"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "A browser router that intelligently opens URLs in different browsers based on configurable wildcard patterns."
+license = "MIT"
+authors = ["Andrey Fedoseev"]
+keywords = ["browser", "routing", "url", "linux"]
+categories = ["command-line-utilities"]
+homepage = "https://github.com/adfxyz/muxie/"
+repository = "https://github.com/adfxyz/muxie/"
+readme = "README.md"
+documentation = "https://github.com/adfxyz/muxie/#readme"
 
 [dependencies]
 dirs = "4.0"
@@ -29,9 +36,10 @@ self-install = []
 [package.metadata.deb]
 section = "utils"
 priority = "optional"
-depends = ["${shlibs:Depends}", "${misc:Depends}"]
+depends = []
 suggests = ["kdialog | zenity | yad"]
 assets = [
+  ["target/release/muxie", "/usr/bin/muxie", "755"],
   ["assets/muxie.desktop", "/usr/share/applications/muxie.desktop", "644"],
   ["assets/icons/32x32/muxie.png", "/usr/share/icons/hicolor/32x32/apps/muxie.png", "644"],
   ["assets/icons/48x48/muxie.png", "/usr/share/icons/hicolor/48x48/apps/muxie.png", "644"],
@@ -42,3 +50,13 @@ assets = [
   ["assets/icons/scalable/muxie.svg", "/usr/share/icons/hicolor/scalable/apps/muxie.svg", "644"],
   ["resources/packaging/debian/xyz.adf.Muxie.service", "/usr/share/dbus-1/services/xyz.adf.Muxie.service", "644"],
 ]
+maintainer = "Andrey Fedoseev"
+license-file = ["LICENSE"]
+extended-description = """
+Muxie is a browser demultiplexer for Linux. It intercepts URL opens and routes
+them to different browsers based on configurable patterns, supports a native
+selection dialog when multiple browsers are eligible, and integrates with D-Bus
+for background operation and config auto-reload. Configuration is TOML-based and
+installed to the user config directory. Muxie should be installed as the default
+browser.
+"""

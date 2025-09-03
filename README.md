@@ -15,8 +15,27 @@ Muxie allows you to:
 
 ## Usage
 
+Packaged installation (recommended):
+
+- Install Muxie via your distribution’s package manager.
+- Set Muxie as the default browser in your desktop environment’s settings (e.g., GNOME/KDE).
+- Optional sanity check:
+
 ```bash
-# Install as default browser (required for proper functioning) and create basic configuration.
+# Typically not needed: the system calls this for you
+muxie open https://example.com
+```
+
+Standalone binary (installed from source or `cargo install`)
+- Use this only if you are not using a distribution package.
+- Run `muxie install` once to register handlers and create a basic configuration. This command does the following:
+  - Installs the application icons and the `.desktop` file.
+  - Install the D-Bus service for running the `muxie` daemon.
+  - Sets `muxie` as your default browser (this requires `xdg-settings` command to available in your system).
+- Use `muxie uninstall` to remove the installed files.
+
+```bash
+# Install as default browser and create basic configuration
 muxie install
 
 # Open a URL (typically called by the system)
