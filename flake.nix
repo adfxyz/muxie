@@ -34,6 +34,8 @@
             ];
             # Ensure consistent static builds when targeting musl
             RUSTFLAGS = "-C target-feature=+crt-static";
+            # Default cargo build target to musl so `cargo build` works in this shell
+            CARGO_BUILD_TARGET = muslTarget;
             MUSL_TARGET = muslTarget;
           };
       });
