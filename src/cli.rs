@@ -56,6 +56,9 @@ pub enum Commands {
 
 #[derive(Subcommand)]
 pub enum ConfigCommands {
+    /// Create a default configuration file if missing
+    Create {},
+
     /// Validate the configuration file (strict mode)
     Validate {},
 }
@@ -121,6 +124,18 @@ mod tests {
                 _ => panic!("unexpected daemon subcommand"),
             },
             _ => panic!("expected Daemon Reload command"),
+        }
+    }
+
+    #[test]
+    fn parse_config_create() {
+        let cli = Cli::parse_from(["muxie", "config", "create"]);
+        match cli.command {
+            Commands::Config { command } => match command {
+                ConfigCommands::Create {} => {}
+                _ => panic!("unexpected config subcommand"),
+            },
+            _ => panic!("expected Config Create command"),
         }
     }
 

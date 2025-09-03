@@ -63,6 +63,19 @@ fn main() {
             restore_default,
         } => uninstall(*yes, *dry_run, *restore_default),
         Commands::Config { command } => match command {
+            ConfigCommands::Create {} => match config::ensure_config() {
+                Ok(()) => {
+                    println!(
+                        "Ensured configuration exists at {}",
+                        crate::paths::config_path().display()
+                    );
+                    Ok(())
+                }
+                Err(err) => {
+                    eprintln!("Failed to create configuration: {err}");
+                    Err(anyhow::anyhow!("config create failed"))
+                }
+            },
             ConfigCommands::Validate {} => match config::read_config() {
                 Ok(cfg) => {
                     let result = cfg.validate(true);

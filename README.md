@@ -19,6 +19,11 @@ Packaged installation (recommended):
 
 - Install Muxie via your distribution’s package manager.
 - Set Muxie as the default browser in your desktop environment’s settings (e.g., GNOME/KDE).
+- Optional: create a default configuration file if missing:
+
+```bash
+muxie config create
+```
 - Optional sanity check:
 
 ```bash
@@ -43,6 +48,16 @@ muxie open https://example.com
 
 # Uninstall - removes installed assets. Use --restore-default to attempt restoring the previous default browser.
 muxie uninstall [--restore-default]
+```
+
+Configuration commands:
+
+```bash
+# Create a default configuration file if missing
+muxie config create
+
+# Validate configuration strictly (checks for executables and dialog providers)
+muxie config validate
 ```
 
 ### Graphical Selection Prompt
