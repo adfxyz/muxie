@@ -5,6 +5,10 @@ rustPlatform.buildRustPackage {
   cargoHash = "sha256-7A9zk2ao3QIWscEIT08lZU8GJDoC8SnxAlinoo4O1p0";
   src = pkgs.lib.cleanSource ./.;
 
+  # Build without default features to omit self-install commands in packaged builds
+  cargoBuildFlags = [ "--no-default-features" ];
+  cargoTestFlags = [ "--no-default-features" ];
+
   # Install desktop entry, icons, and D-Bus activation service into $out
   postInstall = ''
     install -Dm0644 assets/muxie.desktop "$out/share/applications/muxie.desktop"
