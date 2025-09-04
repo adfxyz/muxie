@@ -48,8 +48,21 @@
             MUSL_TARGET = muslTarget;
           };
       });
-      packages = forAllSystems (system: {
-        default = (import nixpkgs { inherit system; }).callPackage ./default.nix { };
+      packages = forAllSystems (system: let
+        pkgs = import nixpkgs { inherit system; };
+      in {
+        default = pkgs.callPackage ./default.nix { };
+        muxie = pkgs.callPackage ./default.nix { };
+      });
+
+      apps = forAllSystems (system: let
+        pkg = self.packages.${system}.muxie;
+      in {
+        muxie = {
+          type = "app";
+          program = "${pkg}/bin/muxie";
+        };
+        default = self.apps.${system}.muxie;
       });
     };
 }
