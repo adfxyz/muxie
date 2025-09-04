@@ -12,7 +12,7 @@ rustPlatform.buildRustPackage {
       install -Dm0644 assets/icons/''${s}x''${s}/muxie.png "$out/share/icons/hicolor/''${s}x''${s}/apps/muxie.png"
     done
     install -Dm0644 assets/icons/scalable/muxie.svg "$out/share/icons/hicolor/scalable/apps/muxie.svg"
-    install -Dm0644 resources/packaging/debian/xyz.adf.Muxie.service \
+    install -Dm0644 resources/packaging/shared/xyz.adf.Muxie.service \
       "$out/share/dbus-1/services/xyz.adf.Muxie.service"
     substituteInPlace "$out/share/dbus-1/services/xyz.adf.Muxie.service" \
       --replace /usr/bin/muxie "$out/bin/muxie"

@@ -48,7 +48,7 @@ assets = [
   ["assets/icons/128x128/muxie.png", "/usr/share/icons/hicolor/128x128/apps/muxie.png", "644"],
   ["assets/icons/256x256/muxie.png", "/usr/share/icons/hicolor/256x256/apps/muxie.png", "644"],
   ["assets/icons/scalable/muxie.svg", "/usr/share/icons/hicolor/scalable/apps/muxie.svg", "644"],
-  ["resources/packaging/debian/xyz.adf.Muxie.service", "/usr/share/dbus-1/services/xyz.adf.Muxie.service", "644"],
+  ["resources/packaging/shared/xyz.adf.Muxie.service", "/usr/share/dbus-1/services/xyz.adf.Muxie.service", "644"],
 ]
 maintainer = "Andrey Fedoseev"
 license-file = ["LICENSE"]
@@ -74,5 +74,5 @@ assets = [
   { source = "assets/icons/128x128/muxie.png", dest = "/usr/share/icons/hicolor/128x128/apps/muxie.png", mode = "0644" },
   { source = "assets/icons/256x256/muxie.png", dest = "/usr/share/icons/hicolor/256x256/apps/muxie.png", mode = "0644" },
   { source = "assets/icons/scalable/muxie.svg", dest = "/usr/share/icons/hicolor/scalable/apps/muxie.svg", mode = "0644" },
-  { source = "resources/packaging/debian/xyz.adf.Muxie.service", dest = "/usr/share/dbus-1/services/xyz.adf.Muxie.service", mode = "0644" },
+  { source = "resources/packaging/shared/xyz.adf.Muxie.service", dest = "/usr/share/dbus-1/services/xyz.adf.Muxie.service", mode = "0644" },
 ]
