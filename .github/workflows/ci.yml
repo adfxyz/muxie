@@ -3,6 +3,9 @@ name: CI
 on:
   push:
     branches: [ '**' ]
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'
   pull_request:
     branches: [ '**' ]
 
@@ -86,3 +89,47 @@ jobs:
             -v "$PWD/scripts/smoke:/test:ro" \
             ubuntu:24.04 \
             bash -lc "bash /test/deb-smoke.sh"
+
+  release:
+    name: Publish GitHub Release (tags only)
+    runs-on: ubuntu-latest
+    needs: deb-package
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: muxie-deb
+          path: dist
+
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          sha256sum dist/*.deb | tee dist/sha256sum.txt
+
+      - name: Prepare release notes (any tag)
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          tag="${GITHUB_REF#refs/tags/}"
+          version_no_v="${tag#v}"
+          # Extract the matching section from CHANGES.md (from heading to before next heading)
+          awk -v v="$version_no_v" \
+            'BEGIN{p=0}
+             /^## /{ if(p){ exit } }
+             $0 ~ "^##[[:space:]]+" v { p=1 }
+             { if(p) print }' CHANGES.md > dist/RELEASE_NOTES.md || true
+          # Ensure file exists even if empty
+          : > dist/RELEASE_NOTES.md
+
+      - name: Create Draft Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          draft: true
+          body_path: dist/RELEASE_NOTES.md
+          files: |
+            dist/*.deb
+            dist/sha256sum.txt
