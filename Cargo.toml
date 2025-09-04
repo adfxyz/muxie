@@ -60,3 +60,19 @@ for background operation and config auto-reload. Configuration is TOML-based and
 installed to the user config directory. Muxie should be installed as the default
 browser.
 """
+
+[package.metadata.generate-rpm]
+summary = "Browser demultiplexer that routes URLs to different browsers via patterns"
+release = 1
+assets = [
+  { source = "target/release/muxie", dest = "/usr/bin/muxie", mode = "0755" },
+  { source = "assets/muxie.desktop", dest = "/usr/share/applications/muxie.desktop", mode = "0644" },
+  { source = "assets/icons/32x32/muxie.png", dest = "/usr/share/icons/hicolor/32x32/apps/muxie.png", mode = "0644" },
+  { source = "assets/icons/48x48/muxie.png", dest = "/usr/share/icons/hicolor/48x48/apps/muxie.png", mode = "0644" },
+  { source = "assets/icons/64x64/muxie.png", dest = "/usr/share/icons/hicolor/64x64/apps/muxie.png", mode = "0644" },
+  { source = "assets/icons/96x96/muxie.png", dest = "/usr/share/icons/hicolor/96x96/apps/muxie.png", mode = "0644" },
+  { source = "assets/icons/128x128/muxie.png", dest = "/usr/share/icons/hicolor/128x128/apps/muxie.png", mode = "0644" },
+  { source = "assets/icons/256x256/muxie.png", dest = "/usr/share/icons/hicolor/256x256/apps/muxie.png", mode = "0644" },
+  { source = "assets/icons/scalable/muxie.svg", dest = "/usr/share/icons/hicolor/scalable/apps/muxie.svg", mode = "0644" },
+  { source = "resources/packaging/debian/xyz.adf.Muxie.service", dest = "/usr/share/dbus-1/services/xyz.adf.Muxie.service", mode = "0644" },
+]

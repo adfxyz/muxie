@@ -21,3 +21,19 @@ test-deb:
       -v "$PWD/scripts/smoke:/test:ro" \
       ubuntu:24.04 \
       bash -lc "bash /test/deb-smoke.sh"
+
+# Build an RPM package (requires cargo-generate-rpm)
+rpm:
+    command -v cargo-generate-rpm >/dev/null 2>&1 || { echo "Install cargo-generate-rpm first (inside dev shell): cargo install cargo-generate-rpm"; exit 1; }
+    cargo build --release --no-default-features --target "${MUSL_TARGET:-x86_64-unknown-linux-musl}"
+    cargo generate-rpm --target "${MUSL_TARGET:-x86_64-unknown-linux-musl}"
+
+# Run a containerized smoke test against the built .rpm (requires Docker)
+test-rpm:
+    command -v docker >/dev/null 2>&1 || { echo "Docker is not installed or not in PATH"; exit 1; }
+    test -n "$(ls -1 target/${MUSL_TARGET:-x86_64-unknown-linux-musl}/generate-rpm/*.rpm 2>/dev/null)" || { echo "No .rpm found. Build first: just rpm"; exit 1; }
+    docker run --rm \
+      -v "$PWD/target/${MUSL_TARGET:-x86_64-unknown-linux-musl}/generate-rpm:/rpms:ro" \
+      -v "$PWD/scripts/smoke:/test:ro" \
+      docker.io/library/fedora:40 \
+      bash -lc "bash /test/rpm-smoke.sh"

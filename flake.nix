@@ -32,6 +32,15 @@
               pkgs.cargo-deb
               pkgs.resvg
             ];
+            shellHook = ''
+              export PATH="$HOME/.cargo/bin:$PATH"
+              if ! command -v cargo-generate-rpm >/dev/null 2>&1; then
+                echo "cargo-generate-rpm not found in PATH; installing with cargo (first run may take a while)..."
+                # Install the tool for the host (glibc) toolchain to avoid musl static link issues
+                (unset CARGO_BUILD_TARGET; export RUSTFLAGS=""; cargo install cargo-generate-rpm) \
+                  || echo "Failed to auto-install cargo-generate-rpm. You can run: cargo install cargo-generate-rpm"
+              fi
+            '';
             # Ensure consistent static builds when targeting musl
             RUSTFLAGS = "-C target-feature=+crt-static";
             # Default cargo build target to musl so `cargo build` works in this shell

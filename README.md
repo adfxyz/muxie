@@ -111,3 +111,19 @@ redact_urls = true
 # provider (no fallback).
 provider = "auto"
 ```
+
+## Build Packages (for maintainers)
+
+- Build Debian package:
+  - Install: `cargo install cargo-deb`
+  - Build: `just deb`
+  - Inspect: `dpkg-deb -c target/${MUSL_TARGET:-x86_64-unknown-linux-musl}/debian/*.deb`
+
+- Build RPM package:
+  - Install: `cargo install cargo-generate-rpm`
+  - Build: `just rpm`
+  - Inspect: `rpm -qpi target/generate-rpm/*.rpm && rpm -qpl target/generate-rpm/*.rpm`
+
+Container smoke tests (optional, requires Docker):
+- Debian/Ubuntu: `just test-deb`
+- Fedora: `just test-rpm`
