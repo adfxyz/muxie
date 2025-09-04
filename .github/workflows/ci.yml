@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '**' ]
   pull_request:
     branches: [ '**' ]
 
@@ -40,3 +40,49 @@ jobs:
 
       - name: Test
         run: cargo test --all --quiet
+
+  deb-package:
+    name: Build and test DEB package (temporary on push/PR)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
+
+      - name: Build .deb (no default features)
+        run: |
+          set -euo pipefail
+          cargo deb --locked --no-default-features --verbose
+          mkdir -p ci-debs
+          deb_file=$(find target -type f -path "*/debian/*.deb" | head -n1)
+          if [ -z "${deb_file:-}" ]; then
+            echo "No .deb found under target/**/debian" >&2
+            exit 2
+          fi
+          cp -v "$deb_file" ci-debs/
+          echo "deb_file=$deb_file" >> $GITHUB_OUTPUT
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: muxie-deb
+          path: ci-debs/*.deb
+          if-no-files-found: error
+
+      - name: Smoke test in Ubuntu container
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD/ci-debs:/debs:ro" \
+            -v "$PWD/scripts/smoke:/test:ro" \
+            ubuntu:24.04 \
+            bash -lc "bash /test/deb-smoke.sh"
