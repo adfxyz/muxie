@@ -204,8 +204,8 @@ jobs:
              /^## /{ if(p){ exit } }
              $0 ~ "^##[[:space:]]+" v { p=1 }
              { if(p) print }' CHANGES.md > dist/RELEASE_NOTES.md || true
-          # Ensure file exists even if empty
-          : > dist/RELEASE_NOTES.md
+          # If no matching section was found, ensure an empty file exists (body may be blank)
+          [ -f dist/RELEASE_NOTES.md ] || : > dist/RELEASE_NOTES.md
 
       - name: Create Draft Release and upload assets
         uses: softprops/action-gh-release@v2
