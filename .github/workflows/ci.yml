@@ -115,7 +115,7 @@ jobs:
       - name: Generate RPM
         run: |
           set -euo pipefail
-          cargo generate-rpm --verbose
+          cargo generate-rpm
           mkdir -p ci-rpms
           rpm_file=$(find target -type f -path "*/generate-rpm/*.rpm" | head -n1)
           if [ -z "${rpm_file:-}" ]; then
