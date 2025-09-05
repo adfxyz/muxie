@@ -43,4 +43,15 @@ nix --extra-experimental-features 'nix-command flakes' run .#muxie -- --help >/d
   exit 10
 }
 
+echo "==> Verifying packaged CLI excludes install/uninstall commands (via subcommand --help)"
+# Expect these subcommands to be unavailable in packaged builds (no-default-features)
+if result/bin/muxie install --help >/dev/null 2>&1; then
+  echo "install subcommand unexpectedly available in packaged build" >&2
+  exit 11
+fi
+if result/bin/muxie uninstall --help >/dev/null 2>&1; then
+  echo "uninstall subcommand unexpectedly available in packaged build" >&2
+  exit 12
+fi
+
 echo "Nix packaging validation: PASS"

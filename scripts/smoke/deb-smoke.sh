@@ -12,7 +12,7 @@ apt-get update
 
 # Pick the first .deb if multiple exist
 debfile="$(ls -1 /debs/*.deb | head -n1)"
-echo "Installing package: ${debfile}"
+echo "==> Installing package: ${debfile}"
 
 # Preferred: apt-get install handles dependencies automatically
 if ! apt-get install -y "$debfile"; then
@@ -22,22 +22,32 @@ if ! apt-get install -y "$debfile"; then
   dpkg -i "$debfile"
 fi
 
-echo "Verifying installation"
+echo "==> Verifying installation"
 dpkg -s muxie | grep -E 'Package:|Version:|Status:' || {
   echo "muxie not registered after install"
   exit 3
 }
 
-echo "Installed files:"
+echo "==> Installed files:"
 dpkg -L muxie || true
 
 hash -r || true
 
-echo "Running muxie --help"
+echo "==> Running muxie --help"
 if ! /usr/bin/muxie --help >/dev/null 2>&1; then
   echo "Failed to execute /usr/bin/muxie"
   exit 4
 fi
-echo "Binary run check passed"
+echo "==> Binary run check passed"
+
+echo "==> Checking that install/uninstall subcommands are not available (packaged build)"
+if /usr/bin/muxie install --help >/dev/null 2>&1; then
+  echo "install subcommand unexpectedly available in packaged build" >&2
+  exit 5
+fi
+if /usr/bin/muxie uninstall --help >/dev/null 2>&1; then
+  echo "uninstall subcommand unexpectedly available in packaged build" >&2
+  exit 6
+fi
 
 echo "Debian package smoke test: PASS (installation and files verified)"

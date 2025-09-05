@@ -7,7 +7,7 @@ if ! ls /rpms/*.rpm >/dev/null 2>&1; then
 fi
 
 rpmfile="$(ls -1 /rpms/*.rpm | head -n1)"
-echo "Installing package: ${rpmfile}"
+echo "==> Installing package: ${rpmfile}"
 
 install_with_dnf() {
   # Prefer dnf when available (Fedora/RHEL/CentOS Stream)
@@ -36,29 +36,39 @@ fallback_with_rpm() {
 }
 
 if ! install_with_dnf && ! install_with_yum && ! install_with_zypper; then
-  echo "Package manager not found or install failed, trying plain rpm"
+  echo "==> Package manager not found or install failed, trying plain rpm"
   fallback_with_rpm || {
     echo "Failed to install RPM"
     exit 3
   }
 fi
 
-echo "Verifying installation"
+echo "==> Verifying installation"
 rpm -q muxie || {
   echo "muxie not registered after install"
   exit 4
 }
 
-echo "Installed files:"
+echo "==> Installed files:"
 rpm -ql muxie || true
 
 hash -r || true
 
-echo "Running muxie --help"
+echo "==> Running muxie --help"
 if ! /usr/bin/muxie --help >/dev/null 2>&1; then
   echo "Failed to execute /usr/bin/muxie"
   exit 5
 fi
-echo "Binary run check passed"
+echo "==> Binary run check passed"
+
+echo "==> Checking that install/uninstall subcommands are not available (packaged build)"
+if /usr/bin/muxie install --help >/dev/null 2>&1; then
+  echo "install subcommand unexpectedly available in packaged build" >&2
+  exit 6
+fi
+if /usr/bin/muxie uninstall --help >/dev/null 2>&1; then
+  echo "uninstall subcommand unexpectedly available in packaged build" >&2
+  exit 7
+fi
 
 echo "RPM package smoke test: PASS (installation and files verified)"
