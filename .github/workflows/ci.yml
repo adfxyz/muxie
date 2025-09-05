@@ -45,9 +45,10 @@ jobs:
         run: cargo test --all --quiet
 
   deb-package:
-    name: Build and test DEB package (temporary on push/PR)
+    name: Build and test DEB package (tags only)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -91,9 +92,10 @@ jobs:
             bash -lc "bash /test/deb-smoke.sh"
 
   rpm-package:
-    name: Build and test RPM package (temporary on push/PR)
+    name: Build and test RPM package (tags only)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -142,9 +144,10 @@ jobs:
             bash -lc "bash /test/rpm-smoke.sh"
 
   nix-validate:
-    name: Validate Nix packaging (build + run)
+    name: Validate Nix packaging (build + run, tags only)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
