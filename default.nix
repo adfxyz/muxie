@@ -1,8 +1,8 @@
 { rustPlatform, lib, pkgs }:
 rustPlatform.buildRustPackage {
   pname = "muxie";
-  version = "0.3.0";
-  cargoHash = "sha256-7A9zk2ao3QIWscEIT08lZU8GJDoC8SnxAlinoo4O1p0";
+  version = "0.4.0";
+  cargoHash = "sha256-osM3lkkAXGJqBMxXUa7qM3dTmdYK5rQeydOo6imdjWw";
   src = pkgs.lib.cleanSource ./.;
 
   # Build without default features to omit self-install commands in packaged builds
